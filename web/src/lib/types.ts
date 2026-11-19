@@ -1,0 +1,54 @@
+import type { RecordModel } from "pocketbase"
+
+export interface Ingredient {
+  nom: string
+  quantite?: number | string
+  unite?: string
+}
+
+export interface Etape {
+  texte: string
+}
+
+export interface Version extends RecordModel {
+  recette: string
+  numero: number
+  ingredients: Ingredient[] | null
+  etapes: Etape[] | null
+  created: string
+}
+
+export interface Recette extends RecordModel {
+  nom: string
+  version_courante: string
+  created: string
+  updated: string
+  expand?: { version_courante?: Version }
+}
+
+export type StatutEssai = "en_cours" | "valide" | "refuse"
+
+export interface Essai extends RecordModel {
+  recette: string
+  version_base: string
+  numero: number
+  titre: string
+  objectif: string
+  ingredients: Ingredient[] | null
+  etapes: Etape[] | null
+  statut: StatutEssai
+  raison_refus: string
+  date_decision: string
+  version_creee: string
+  created: string
+}
+
+export interface Fournee extends RecordModel {
+  recette: string
+  version: string
+  essai: string
+  date: string
+  notes: string
+  photos: string[]
+  expand?: { version?: Version; essai?: Essai }
+}

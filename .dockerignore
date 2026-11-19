@@ -1,0 +1,7 @@
+.git
+.env
+**/node_modules
+web/dist
+web/dev-dist
+pocketbase/pb_data
+pocketbase/tests

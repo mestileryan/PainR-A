@@ -1,0 +1,24 @@
+services:
+  painrd:
+    build: .
+    image: painrd:local
+    restart: unless-stopped
+    volumes:
+      - pb_data:/pb/pb_data
+    ports:
+      # Accessible uniquement depuis le serveur lui-même ; l'extérieur passe par le tunnel.
+      - "127.0.0.1:8090:8090"
+
+  tunnel:
+    image: cloudflare/cloudflared:2026.11.1
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?Renseigne TUNNEL_TOKEN dans le fichier .env}
+    depends_on:
+      painrd:
+        condition: service_healthy
+
+volumes:
+  # Base SQLite, photos et sauvegardes locales de PocketBase.
+  pb_data:

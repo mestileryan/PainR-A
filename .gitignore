@@ -1,0 +1,5 @@
+node_modules/
+web/dist/
+web/dev-dist/
+pocketbase/pb_data/
+.env

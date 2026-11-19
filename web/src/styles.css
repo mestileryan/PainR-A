@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+/* Palette et typographie reprises de la maquette Claude Design. */
+@theme {
+  --color-fond: #f1f2ee;
+  --color-carte: #ffffff;
+  --color-encre: #1c1b19;
+  --color-encre-douce: #3f3d39;
+  --color-sourdine: #5e5c57;
+  --color-trait: #dad8d1;
+  --color-trait-fort: #cfcdc5;
+  --color-pointille: #a9a69d;
+  --color-seigle: #6b3e1c;
+  --color-essai: #a04e00;
+  --color-essai-fond: #fcebd9;
+  --color-essai-trait: #f2c9a0;
+  --color-version: #1d5ba6;
+  --color-version-fond: #e3edf8;
+  --color-photo: #e4e2db;
+  --color-erreur: #a61b1b;
+  --color-erreur-fond: #fbe4e4;
+
+  --font-sans: "Inter Variable", system-ui, sans-serif;
+  --font-titre: "Bricolage Grotesque Variable", "Inter Variable", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-fond);
+  color: var(--color-encre);
+  font-family: var(--font-sans);
+}
+
+/* Les champs restent à 16 px pour éviter le zoom automatique sur iPhone. */
+input,
+textarea,
+select {
+  font-size: 16px;
+}
