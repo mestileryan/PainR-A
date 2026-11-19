@@ -41,6 +41,7 @@ export interface Essai extends RecordModel {
   date_decision: string
   version_creee: string
   created: string
+  expand?: { recette?: Recette; version_base?: Version; version_creee?: Version }
 }
 
 export interface Fournee extends RecordModel {

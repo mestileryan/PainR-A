@@ -2,6 +2,9 @@ import { useEffect, useState } from "react"
 import { BrowserRouter, Navigate, Route, Routes } from "react-router"
 import { pb } from "./lib/pb"
 import Connexion from "./pages/Connexion"
+import EditionEssai from "./pages/EditionEssai"
+import Essai from "./pages/Essai"
+import Historique from "./pages/Historique"
 import Livret from "./pages/Livret"
 import NouvelleRecette from "./pages/NouvelleRecette"
 import Recette from "./pages/Recette"
@@ -30,6 +33,10 @@ export default function App() {
         <Route path="/" element={<Livret />} />
         <Route path="/recettes/nouvelle" element={<NouvelleRecette />} />
         <Route path="/recettes/:id" element={<Recette />} />
+        <Route path="/recettes/:id/historique" element={<Historique />} />
+        <Route path="/recettes/:id/essais/nouveau" element={<EditionEssai mode="nouveau" />} />
+        <Route path="/essais/:id" element={<Essai />} />
+        <Route path="/essais/:id/modifier" element={<EditionEssai mode="modifier" />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

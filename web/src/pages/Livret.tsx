@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router"
 import { Chargement, Erreur, Page, classeChamp } from "../components/Commun"
-import { IconeEssai, IconePlus, IconeSortie } from "../components/Icones"
+import { IconeEssai, IconePlus, IconeSortie, IconeSuite } from "../components/Icones"
 import { dateCourte, pluriel, sansAccents } from "../lib/format"
 import { messageErreur, pb } from "../lib/pb"
 import type { Essai, Recette } from "../lib/types"
 
 export default function Livret() {
   const [recettes, setRecettes] = useState<Recette[] | null>(null)
-  const [essaisParRecette, setEssaisParRecette] = useState<Map<string, number>>(new Map())
+  const [essaisEnCours, setEssaisEnCours] = useState<Essai[]>([])
   const [recherche, setRecherche] = useState("")
   const [erreur, setErreur] = useState("")
 
@@ -16,15 +16,18 @@ export default function Livret() {
     let annule = false
     Promise.all([
       pb.collection("recettes").getFullList<Recette>({ expand: "version_courante" }),
-      pb.collection("essais").getFullList<Essai>({ filter: 'statut = "en_cours"', fields: "id,recette" }),
+      pb.collection("essais").getFullList<Essai>({
+        filter: 'statut = "en_cours"',
+        sort: "created",
+        expand: "recette",
+        fields: "id,recette,titre,numero,expand.recette.nom",
+      }),
     ])
       .then(([listeRecettes, essais]) => {
         if (annule) return
         listeRecettes.sort((a, b) => a.nom.localeCompare(b.nom, "fr"))
         setRecettes(listeRecettes)
-        const compte = new Map<string, number>()
-        for (const e of essais) compte.set(e.recette, (compte.get(e.recette) ?? 0) + 1)
-        setEssaisParRecette(compte)
+        setEssaisEnCours(essais)
       })
       .catch((err) => !annule && setErreur(messageErreur(err)))
     return () => {
@@ -37,7 +40,11 @@ export default function Livret() {
     return (recettes ?? []).filter((r) => !filtre || sansAccents(r.nom).includes(filtre))
   }, [recettes, recherche])
 
-  const totalEssais = [...essaisParRecette.values()].reduce((a, b) => a + b, 0)
+  const essaisParRecette = useMemo(() => {
+    const compte = new Map<string, number>()
+    for (const e of essaisEnCours) compte.set(e.recette, (compte.get(e.recette) ?? 0) + 1)
+    return compte
+  }, [essaisEnCours])
 
   return (
     <Page>
@@ -70,11 +77,25 @@ export default function Livret() {
         </div>
       )}
 
-      {totalEssais > 0 && (
-        <div className="flex items-center gap-3 rounded-2xl bg-essai-fond px-4 py-3.5">
-          <IconeEssai taille={22} className="shrink-0 text-essai" />
-          <span className="text-[15px] font-semibold">{pluriel(totalEssais, "essai à tester", "essais à tester")}</span>
-        </div>
+      {essaisEnCours.length > 0 && (
+        <section aria-label="Essais à tester" className="flex flex-col gap-1 rounded-2xl bg-essai-fond px-4 py-3.5">
+          <span className="flex items-center gap-3 pb-1">
+            <IconeEssai taille={22} className="shrink-0 text-essai" />
+            <span className="text-[15px] font-semibold">
+              {pluriel(essaisEnCours.length, "essai à tester", "essais à tester")}
+            </span>
+          </span>
+          {essaisEnCours.map((e) => (
+            <Link key={e.id} to={`/essais/${e.id}`}
+              className="flex min-h-11 items-center justify-between gap-3 border-t border-essai-trait pt-1 text-[15px]">
+              <span className="leading-snug">
+                <span className="font-semibold">{e.expand?.recette?.nom}</span>
+                <span className="text-encre-douce"> · {e.titre}</span>
+              </span>
+              <IconeSuite taille={18} className="shrink-0" />
+            </Link>
+          ))}
+        </section>
       )}
 
       {recettes !== null && recettes.length === 0 && (

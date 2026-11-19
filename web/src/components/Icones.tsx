@@ -38,6 +38,18 @@ export const IconeEssai = (p: Props) => (
     <path d="M7 15h10" />
   </Icone>
 )
+export const IconeHorloge = (p: Props) => (
+  <Icone {...p}>
+    <path d="M12 8v4l3 2" />
+    <circle cx="12" cy="12" r="9" />
+  </Icone>
+)
+export const IconeCrayon = (p: Props) => (
+  <Icone {...p}>
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+  </Icone>
+)
 export const IconeSortie = (p: Props) => (
   <Icone {...p}>
     <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" />

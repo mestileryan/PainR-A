@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react"
-import { useParams } from "react-router"
-import { Chargement, Erreur, LienRetour, Page, TitreSection, classeBoutonPointille } from "../components/Commun"
-import { IconePhoto } from "../components/Icones"
+import { Link, useParams } from "react-router"
+import {
+  Chargement, Erreur, LienRetour, Page, TitreSection, classeBoutonPointille, classeBoutonSecondaire,
+} from "../components/Commun"
+import { IconeCrayon, IconeHorloge, IconePhoto, IconeSuite } from "../components/Icones"
 import ListeFournees from "../components/ListeFournees"
 import NouvelleFournee from "../components/NouvelleFournee"
 import { resumerDifferences } from "../lib/differences"
@@ -60,7 +62,14 @@ export default function Recette() {
 
   return (
     <Page>
-      <LienRetour vers="/">Livret</LienRetour>
+      <div className="flex items-center justify-between">
+        <LienRetour vers="/">Livret</LienRetour>
+        <Link to={`/recettes/${recette.id}/historique`}
+          className="flex h-11 items-center gap-1.5 text-[15px] font-medium text-seigle">
+          <IconeHorloge taille={18} />
+          Historique
+        </Link>
+      </div>
 
       <div className="flex flex-col gap-2.5">
         <h1 className="m-0 font-titre text-[32px] leading-[1.08] font-bold">{recette.nom}</h1>
@@ -77,16 +86,19 @@ export default function Recette() {
       {essais.map((essai) => {
         const changements = version ? resumerDifferences(version, essai) : []
         return (
-          <section key={essai.id} aria-label={`Essai n° ${essai.numero}`}
+          <Link key={essai.id} to={`/essais/${essai.id}`}
             className="flex flex-col gap-2.5 rounded-2xl border border-essai-trait bg-essai-fond p-4">
-            <span className="text-[13px] font-semibold tracking-[0.06em] text-essai uppercase">
-              Essai n° {essai.numero} en cours
+            <span className="flex items-center justify-between gap-3">
+              <span className="text-[13px] font-semibold tracking-[0.06em] text-essai uppercase">
+                Essai n° {essai.numero} en cours
+              </span>
+              <span className="flex items-center gap-0.5 text-sm font-semibold">Tester <IconeSuite taille={16} /></span>
             </span>
             <span className="text-base font-semibold">{essai.titre}</span>
             {changements.length > 0 && (
               <span className="font-mono text-[13px] leading-relaxed text-sourdine">{changements.join(" · ")}</span>
             )}
-          </section>
+          </Link>
         )
       })}
 
@@ -144,6 +156,18 @@ export default function Recette() {
           </ol>
         )}
       </section>
+
+      {version && (
+        <div className="flex flex-col gap-2">
+          <Link to={`/recettes/${recette.id}/essais/nouveau`} className={classeBoutonSecondaire}>
+            <IconeCrayon />
+            Proposer une modification
+          </Link>
+          <p className="m-0 text-center text-sm leading-snug text-sourdine">
+            La version {version.numero} reste en vigueur tant que l'essai n'est pas validé.
+          </p>
+        </div>
+      )}
     </Page>
   )
 }
