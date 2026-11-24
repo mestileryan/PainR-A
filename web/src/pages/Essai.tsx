@@ -130,7 +130,8 @@ export default function Essai() {
         <TitreSection aside={enCours ? <Link to={`/essais/${essai.id}/modifier`} className="font-semibold text-seigle">Modifier</Link> : undefined}>
           Ce qui change
         </TitreSection>
-        <ListeDifferences differences={differences(base, essai)} />
+        <ListeDifferences differences={differences(base, essai)} ingredientsAvant={base.ingredients ?? []}
+          ingredientsApres={essai.ingredients ?? []} />
       </section>
 
       <section className="flex flex-col gap-2.5">

@@ -71,6 +71,35 @@ function creerRecette(e) {
   return e.json(201, resultat)
 }
 
+// POST /api/painrd/recettes/{id}/corriger { nom, ingredients, etapes }
+// Corrige la version en vigueur sur place (coquille, oubli) : pas de nouvelle version,
+// le numéro ne change pas ; la date de correction est gardée.
+function corrigerRecette(e) {
+  const id = e.request.pathValue("id")
+  const body = e.requestInfo().body
+  const nom = typeof body.nom === "string" ? body.nom.trim() : ""
+  if (!nom) throw new BadRequestError("Le nom de la recette est obligatoire.")
+  const ingredients = verifierIngredients(body.ingredients || [])
+  const etapes = verifierEtapes(body.etapes || [])
+
+  let resultat = null
+  e.app.runInTransaction((tx) => {
+    const recette = trouver(tx, "recettes", id, "Recette introuvable.")
+    const version = trouver(tx, "versions", recette.getString("version_courante"), "Version en vigueur introuvable.")
+
+    recette.set("nom", nom)
+    tx.save(recette)
+
+    version.set("ingredients", ingredients)
+    version.set("etapes", etapes)
+    version.set("corrigee_le", new DateTime())
+    tx.save(version)
+
+    resultat = { version: version.id, numero: version.getInt("numero") }
+  })
+  return e.json(200, resultat)
+}
+
 // POST /api/painrd/essais/{id}/valider
 // L'essai devient la version suivante de la recette.
 function validerEssai(e) {
@@ -194,6 +223,7 @@ function avantCreationFournee(e) {
 
 module.exports = {
   creerRecette,
+  corrigerRecette,
   validerEssai,
   refuserEssai,
   avantCreationEssai,

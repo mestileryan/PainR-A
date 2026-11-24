@@ -119,6 +119,22 @@ ok((await api("DELETE", `/api/collections/essais/records/${essai2}`, { token: T 
 const versions = (await api("GET", `/api/collections/versions/records?filter=${encodeURIComponent(`recette="${recetteId}"`)}&sort=numero`, { token: T })).data.items
 ok(versions.map((v) => v.numero).join(",") === "1,2", "historique : v1, v2")
 
+// Correction sur place de la version en vigueur (sans nouvelle version)
+const v2 = val.data.version
+ok((await api("POST", `/api/painrd/recettes/${recetteId}/corriger`, { body: { nom: "X" } })).status === 401, "correction sans connexion refusée")
+ok((await api("POST", `/api/painrd/recettes/${recetteId}/corriger`, { token: T, body: { nom: "Pain", etapes: [{ texte: "" }] } })).status === 400, "correction avec étape vide refusée")
+const corr = await api("POST", `/api/painrd/recettes/${recetteId}/corriger`, { token: T, body: {
+  nom: "Pain de campagne corrigé",
+  ingredients: [{ nom: "Farine T80", quantite: 1000, unite: "g" }, { nom: "Eau", quantite: 760, unite: "g" }],
+  etapes: [{ texte: "Ajouter @[Eau|1/2], autolyse 1 h" }],
+} })
+ok(corr.status === 200 && corr.data.version === v2 && corr.data.numero === 2, "correction : même version, numéro 2 inchangé")
+recette = (await api("GET", `/api/collections/recettes/records/${recetteId}?expand=version_courante`, { token: T })).data
+ok(recette.nom === "Pain de campagne corrigé" && recette.version_courante === v2, "correction : nom changé, version en vigueur inchangée")
+ok(recette.expand.version_courante.ingredients[1].quantite === 760 && recette.expand.version_courante.corrigee_le !== "", "correction : contenu remplacé, date de correction renseignée")
+ok((await api("GET", `/api/collections/versions/records?filter=${encodeURIComponent(`recette="${recetteId}"`)}`, { token: T })).data.totalItems === 2, "correction : pas de nouvelle version")
+ok((await api("POST", `/api/painrd/recettes/inconnue12345/corriger`, { token: T, body: { nom: "X" } })).status === 404, "correction d'une recette inconnue : 404")
+
 ok((await api("DELETE", `/api/collections/recettes/records/${recetteId}`, { token: T })).status === 204, "supprimer la recette")
 for (const c of ["versions", "essais", "fournees"]) {
   const n = (await api("GET", `/api/collections/${c}/records`, { token: T })).data.totalItems

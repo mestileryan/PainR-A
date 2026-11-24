@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react"
 import { useNavigate } from "react-router"
 import { Erreur, LienRetour, Page, classeBoutonPrincipal, classeChamp } from "../components/Commun"
-import EditeurContenu, { contenuDepuis, lignesDepuis } from "../components/EditeurContenu"
+import EditeurContenu, { contenuDepuis, lignesDepuis, verifierLignes } from "../components/EditeurContenu"
 import { messageErreur, pb } from "../lib/pb"
 
 export default function NouvelleRecette() {
@@ -13,6 +13,11 @@ export default function NouvelleRecette() {
 
   async function enregistrer(ev: FormEvent) {
     ev.preventDefault()
+    const probleme = verifierLignes(lignes)
+    if (probleme) {
+      setErreur(probleme)
+      return
+    }
     setErreur("")
     setEnvoi(true)
     try {

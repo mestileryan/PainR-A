@@ -1,4 +1,6 @@
 import type { Difference } from "../lib/differences"
+import type { Ingredient } from "../lib/types"
+import TexteEtape from "./TexteEtape"
 
 function Fleche() {
   return (
@@ -12,7 +14,7 @@ function Fleche() {
 const classeAvant = "text-sourdine line-through"
 const classeApres = "rounded-md bg-essai-fond px-2 py-0.5 font-medium text-essai"
 
-function Ligne({ d }: { d: Difference }) {
+function Ligne({ d, avant, apres }: { d: Difference; avant: Ingredient[]; apres: Ingredient[] }) {
   switch (d.type) {
     case "ingredient-modifie":
       return (
@@ -45,28 +47,32 @@ function Ligne({ d }: { d: Difference }) {
       return (
         <>
           <span className="text-sm font-semibold text-sourdine">Étape {String(d.numero).padStart(2, "0")}</span>
-          <span className={`text-[15px] leading-snug ${classeAvant}`}>{d.avant}</span>
-          <span className="self-start rounded-md bg-essai-fond px-2 py-1 text-[15px] leading-snug text-essai">{d.apres}</span>
+          <span className={`text-[15px] leading-snug ${classeAvant}`}><TexteEtape texte={d.avant} ingredients={avant} /></span>
+          <span className="self-start rounded-md bg-essai-fond px-2 py-1 text-[15px] leading-snug text-essai"><TexteEtape texte={d.apres} ingredients={apres} /></span>
         </>
       )
     case "etape-ajoutee":
       return (
         <>
           <span className="text-sm font-semibold text-sourdine">Nouvelle étape {String(d.numero).padStart(2, "0")}</span>
-          <span className="self-start rounded-md bg-essai-fond px-2 py-1 text-[15px] leading-snug text-essai">{d.apres}</span>
+          <span className="self-start rounded-md bg-essai-fond px-2 py-1 text-[15px] leading-snug text-essai"><TexteEtape texte={d.apres} ingredients={apres} /></span>
         </>
       )
     case "etape-retiree":
       return (
         <>
           <span className="text-sm font-semibold text-sourdine">Étape {String(d.numero).padStart(2, "0")} retirée</span>
-          <span className={`text-[15px] leading-snug ${classeAvant}`}>{d.avant}</span>
+          <span className={`text-[15px] leading-snug ${classeAvant}`}><TexteEtape texte={d.avant} ingredients={avant} /></span>
         </>
       )
   }
 }
 
-export default function ListeDifferences({ differences }: { differences: Difference[] }) {
+export default function ListeDifferences({ differences, ingredientsAvant = [], ingredientsApres = [] }: {
+  differences: Difference[]
+  ingredientsAvant?: Ingredient[]
+  ingredientsApres?: Ingredient[]
+}) {
   if (differences.length === 0) {
     return <p className="m-0 text-[15px] text-sourdine">Aucune différence avec la version de départ.</p>
   }
@@ -74,7 +80,7 @@ export default function ListeDifferences({ differences }: { differences: Differe
     <ul className="m-0 flex list-none flex-col rounded-2xl border border-trait bg-carte p-0">
       {differences.map((d, i) => (
         <li key={i} className="flex flex-col gap-2 border-b border-[#ecebe7] px-4 py-3.5 last:border-b-0">
-          <Ligne d={d} />
+          <Ligne d={d} avant={ingredientsAvant} apres={ingredientsApres} />
         </li>
       ))}
     </ul>

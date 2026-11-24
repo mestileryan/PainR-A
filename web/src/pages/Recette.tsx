@@ -4,7 +4,8 @@ import ChoixCoefficient from "../components/ChoixCoefficient"
 import {
   Chargement, Erreur, LienRetour, Page, TitreSection, classeBoutonPointille, classeBoutonSecondaire,
 } from "../components/Commun"
-import { IconeCrayon, IconeHorloge, IconePhoto, IconeSuite } from "../components/Icones"
+import { IconeCrayon, IconeEssai, IconeHorloge, IconePhoto, IconeSuite } from "../components/Icones"
+import TexteEtape from "../components/TexteEtape"
 import ListeFournees from "../components/ListeFournees"
 import NouvelleFournee from "../components/NouvelleFournee"
 import { resumerDifferences } from "../lib/differences"
@@ -87,7 +88,10 @@ export default function Recette() {
             <span className="rounded-full bg-encre px-2.5 py-1 font-mono text-[13px] font-medium text-white">
               Version {version.numero}
             </span>
-            <span className="text-sm text-sourdine">en vigueur depuis le {dateCourte(version.created)}</span>
+            <span className="text-sm text-sourdine">
+              en vigueur depuis le {dateCourte(version.created)}
+              {version.corrigee_le && ` · corrigée le ${dateCourte(version.corrigee_le)}`}
+            </span>
           </div>
         )}
       </div>
@@ -153,7 +157,7 @@ export default function Recette() {
         )}
         {coefficient !== 1 && (
           <p className="m-0 flex flex-wrap items-center justify-between gap-x-3 text-sm leading-snug text-sourdine">
-            <span>Quantités recalculées. Les durées et températures des étapes ne changent pas.</span>
+            <span>Quantités recalculées, y compris celles citées dans les étapes. Les durées et températures ne changent pas.</span>
             <button type="button" onClick={() => changerCoefficient(1)}
               className="h-11 border-0 bg-transparent p-0 text-sm font-semibold text-seigle underline">
               Revenir aux quantités d'origine
@@ -171,7 +175,9 @@ export default function Recette() {
             {etapes.map((etape, i) => (
               <li key={i} className="flex gap-3.5 rounded-2xl border border-trait bg-carte px-4 py-3.5">
                 <span className="pt-0.5 font-mono text-sm text-seigle">{String(i + 1).padStart(2, "0")}</span>
-                <span className="text-base leading-normal whitespace-pre-line">{etape.texte}</span>
+                <span className="text-base leading-normal whitespace-pre-line">
+                  <TexteEtape texte={etape.texte} ingredients={ingredients} coefficient={coefficient} />
+                </span>
               </li>
             ))}
           </ol>
@@ -181,12 +187,17 @@ export default function Recette() {
       {version && (
         <div className="flex flex-col gap-2">
           <Link to={`/recettes/${recette.id}/essais/nouveau`} className={classeBoutonSecondaire}>
-            <IconeCrayon />
-            Proposer une modification
+            <IconeEssai />
+            Faire un essai de modification
           </Link>
           <p className="m-0 text-center text-sm leading-snug text-sourdine">
             La version {version.numero} reste en vigueur tant que l'essai n'est pas validé.
           </p>
+          <Link to={`/recettes/${recette.id}/corriger`}
+            className="flex h-11 items-center justify-center gap-1.5 text-[15px] font-semibold text-seigle">
+            <IconeCrayon taille={18} />
+            Corriger la recette, sans nouvelle version
+          </Link>
         </div>
       )}
     </Page>

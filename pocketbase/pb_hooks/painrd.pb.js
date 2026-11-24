@@ -6,6 +6,10 @@ routerAdd("POST", "/api/painrd/recettes", (e) => {
   return require(`${__hooks}/metier.js`).creerRecette(e)
 }, $apis.requireAuth())
 
+routerAdd("POST", "/api/painrd/recettes/{id}/corriger", (e) => {
+  return require(`${__hooks}/metier.js`).corrigerRecette(e)
+}, $apis.requireAuth())
+
 routerAdd("POST", "/api/painrd/essais/{id}/valider", (e) => {
   return require(`${__hooks}/metier.js`).validerEssai(e)
 }, $apis.requireAuth())

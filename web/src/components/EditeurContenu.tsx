@@ -1,5 +1,8 @@
-import { lireQuantite } from "../lib/format"
+import { useEffect, useId, useMemo, useState } from "react"
+import { lireQuantite, sansAccents } from "../lib/format"
+import { memeNom, problemesReferences, renommerReferences } from "../lib/references"
 import type { Etape, Ingredient } from "../lib/types"
+import ChampEtape from "./ChampEtape"
 import { TitreSection, classeChamp } from "./Commun"
 import { IconeCroix, IconePlus } from "./Icones"
 
@@ -58,9 +61,51 @@ const classeBoutonAjout =
 const classeBoutonRetrait =
   "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-0 bg-transparent text-sourdine hover:text-encre"
 
+// Problème bloquant avant l'enregistrement : ingrédients en double ou référence introuvable.
+export function verifierLignes(lignes: Lignes): string | null {
+  const { ingredients, etapes } = contenuDepuis(lignes)
+  const vus = new Set<string>()
+  for (const i of ingredients) {
+    const cle = sansAccents(i.nom)
+    if (vus.has(cle)) {
+      return `L'ingrédient « ${i.nom} » apparaît deux fois : donne-leur des noms différents (par exemple « Farine T65 » et « Farine T80 »).`
+    }
+    vus.add(cle)
+  }
+  return problemesReferences(etapes, ingredients)[0] ?? null
+}
+
 export default function EditeurContenu({ lignes, onChange }: { lignes: Lignes; onChange: (l: Lignes) => void }) {
-  const majIngredient = (cle: number, champ: "nom" | "quantite" | "unite", valeur: string) =>
-    onChange({ ...lignes, ingredients: lignes.ingredients.map((l) => (l.cle === cle ? { ...l, [champ]: valeur } : l)) })
+  const idBase = useId()
+  const [aFocaliser, setAFocaliser] = useState<number | null>(null)
+  const ingredientsCites = useMemo(() => contenuDepuis(lignes).ingredients, [lignes])
+
+  // Une ligne ajoutée (bouton ou Tab) reçoit le curseur dès qu'elle est affichée.
+  useEffect(() => {
+    if (aFocaliser === null) return
+    document.getElementById(`${idBase}-ingredient-${aFocaliser}`)?.focus()
+    setAFocaliser(null)
+  }, [aFocaliser, idBase])
+
+  function ajouterIngredient() {
+    const ligne = nouvelIngredient()
+    setAFocaliser(ligne.cle)
+    onChange({ ...lignes, ingredients: [...lignes.ingredients, ligne] })
+  }
+
+  function majIngredient(cle: number, champ: "nom" | "quantite" | "unite", valeur: string) {
+    let etapes = lignes.etapes
+    if (champ === "nom") {
+      // Renommer un ingrédient met à jour ses références dans les étapes.
+      const ancien = lignes.ingredients.find((l) => l.cle === cle)?.nom ?? ""
+      const homonyme = lignes.ingredients.some((l) => l.cle !== cle && memeNom(l.nom, ancien))
+      if (ancien.trim() && valeur.trim() && !homonyme && !memeNom(ancien, valeur)) {
+        etapes = etapes.map((e) => ({ ...e, texte: renommerReferences(e.texte, ancien, valeur.trim()) }))
+      }
+    }
+    onChange({ ingredients: lignes.ingredients.map((l) => (l.cle === cle ? { ...l, [champ]: valeur } : l)), etapes })
+  }
+
   const majEtape = (cle: number, texte: string) =>
     onChange({ ...lignes, etapes: lignes.etapes.map((l) => (l.cle === cle ? { ...l, texte } : l)) })
 
@@ -75,7 +120,7 @@ export default function EditeurContenu({ lignes, onChange }: { lignes: Lignes; o
         </div>
         {lignes.ingredients.map((ligne, i) => (
           <div key={ligne.cle} className="flex items-center gap-2">
-            <input aria-label={`Ingrédient ${i + 1}`} value={ligne.nom}
+            <input id={`${idBase}-ingredient-${ligne.cle}`} aria-label={`Ingrédient ${i + 1}`} value={ligne.nom}
               onChange={(e) => majIngredient(ligne.cle, "nom", e.target.value)}
               className={`${classeChamp} min-w-0 flex-1`} />
             <input aria-label={`Quantité de l'ingrédient ${i + 1}`} inputMode="decimal" value={ligne.quantite}
@@ -83,27 +128,37 @@ export default function EditeurContenu({ lignes, onChange }: { lignes: Lignes; o
               className={`${classeChamp} w-20! shrink-0 font-mono`} />
             <input aria-label={`Unité de l'ingrédient ${i + 1}`} value={ligne.unite} placeholder="g"
               onChange={(e) => majIngredient(ligne.cle, "unite", e.target.value)}
+              onKeyDown={(e) => {
+                // Tab depuis la dernière ligne : on en ajoute une nouvelle.
+                if (e.key === "Tab" && !e.shiftKey && i === lignes.ingredients.length - 1) {
+                  e.preventDefault()
+                  ajouterIngredient()
+                }
+              }}
               className={`${classeChamp} w-16! shrink-0`} />
-            <button type="button" aria-label={`Retirer l'ingrédient ${i + 1}`} className={classeBoutonRetrait}
+            {/* Hors tabulation : Tab enchaîne Ingrédient → Quantité → Unité → ligne suivante. */}
+            <button type="button" tabIndex={-1} aria-label={`Retirer l'ingrédient ${i + 1}`} className={classeBoutonRetrait}
               onClick={() => onChange({ ...lignes, ingredients: lignes.ingredients.filter((l) => l.cle !== ligne.cle) })}>
               <IconeCroix />
             </button>
           </div>
         ))}
-        <button type="button" className={classeBoutonAjout}
-          onClick={() => onChange({ ...lignes, ingredients: [...lignes.ingredients, nouvelIngredient()] })}>
+        <button type="button" className={classeBoutonAjout} onClick={ajouterIngredient}>
           <IconePlus /> Ajouter un ingrédient
         </button>
       </section>
 
       <section className="flex flex-col gap-2.5">
         <TitreSection>Étapes</TitreSection>
+        <p className="m-0 text-sm leading-snug text-sourdine">
+          Tape <kbd className="font-mono text-encre">@</kbd> pour citer un ingrédient, et{" "}
+          <span className="font-mono text-encre">@[Eau|1/2]</span> pour n'en utiliser qu'une partie (aussi : 30%, 0,25).
+        </p>
         {lignes.etapes.map((ligne, i) => (
           <div key={ligne.cle} className="flex items-start gap-2">
             <span className="w-7 shrink-0 pt-3 font-mono text-sm text-seigle">{String(i + 1).padStart(2, "0")}</span>
-            <textarea aria-label={`Étape ${i + 1}`} rows={2} value={ligne.texte}
-              onChange={(e) => majEtape(ligne.cle, e.target.value)}
-              className="box-border min-w-0 flex-1 resize-y rounded-xl border border-trait-fort bg-carte px-3.5 py-3 leading-snug" />
+            <ChampEtape numero={i + 1} texte={ligne.texte} ingredients={ingredientsCites}
+              onChange={(texte) => majEtape(ligne.cle, texte)} />
             <button type="button" aria-label={`Retirer l'étape ${i + 1}`} className={classeBoutonRetrait}
               onClick={() => onChange({ ...lignes, etapes: lignes.etapes.filter((l) => l.cle !== ligne.cle) })}>
               <IconeCroix />

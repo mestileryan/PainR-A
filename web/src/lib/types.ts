@@ -16,6 +16,8 @@ export interface Version extends RecordModel {
   ingredients: Ingredient[] | null
   etapes: Etape[] | null
   created: string
+  // Renseignée quand la version a été corrigée sur place (sans nouvelle version).
+  corrigee_le: string
 }
 
 export interface Recette extends RecordModel {

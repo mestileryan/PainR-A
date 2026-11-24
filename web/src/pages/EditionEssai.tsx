@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react"
 import { useNavigate, useParams } from "react-router"
 import { Chargement, Erreur, LienRetour, Page, TitreSection, classeBoutonPrincipal, classeChamp } from "../components/Commun"
-import EditeurContenu, { contenuDepuis, lignesDepuis, type Lignes } from "../components/EditeurContenu"
+import EditeurContenu, { contenuDepuis, lignesDepuis, verifierLignes, type Lignes } from "../components/EditeurContenu"
 import ListeDifferences from "../components/ListeDifferences"
 import { differences } from "../lib/differences"
 import { messageErreur, pb } from "../lib/pb"
@@ -83,6 +83,11 @@ export default function EditionEssai({ mode }: { mode: "nouveau" | "modifier" })
   async function enregistrer(ev: FormEvent) {
     ev.preventDefault()
     setErreur("")
+    const probleme = verifierLignes(lignes!)
+    if (probleme) {
+      setErreur(probleme)
+      return
+    }
     if (changements.length === 0) {
       setErreur("L'essai ne change rien à la version de départ : modifie au moins un ingrédient ou une étape.")
       return
@@ -137,7 +142,8 @@ export default function EditionEssai({ mode }: { mode: "nouveau" | "modifier" })
 
         <section className="flex flex-col gap-2.5">
           <TitreSection>Ce qui change</TitreSection>
-          <ListeDifferences differences={changements} />
+          <ListeDifferences differences={changements} ingredientsAvant={base.ingredients ?? []}
+            ingredientsApres={contenuDepuis(lignes).ingredients} />
         </section>
 
         <Erreur message={erreur} />
