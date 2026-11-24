@@ -12,14 +12,16 @@ RUN npm run build
 FROM alpine:3.24
 ARG PB_VERSION=0.40.6
 ARG TARGETARCH
+# TARGETARCH n'est fourni que par BuildKit (buildx) ; sinon on détecte l'architecture.
 RUN set -eux; \
     apk add --no-cache ca-certificates wget; \
-    case "${TARGETARCH}" in \
-      amd64) sha=0e1f609158ed945f809f8a02ae012aa0427129c66ebb63c1aee76f2c0309373f ;; \
-      arm64) sha=d22c66ceb67ca92b7d767f36d826e848a276bcfa3c197ead20bf87c42208984f ;; \
-      *) echo "Architecture non prise en charge : ${TARGETARCH}"; exit 1 ;; \
+    arch="${TARGETARCH:-$(uname -m)}"; \
+    case "${arch}" in \
+      amd64|x86_64) arch=amd64; sha=0e1f609158ed945f809f8a02ae012aa0427129c66ebb63c1aee76f2c0309373f ;; \
+      arm64|aarch64) arch=arm64; sha=d22c66ceb67ca92b7d767f36d826e848a276bcfa3c197ead20bf87c42208984f ;; \
+      *) echo "Architecture non prise en charge : ${arch}"; exit 1 ;; \
     esac; \
-    wget -q -O /tmp/pb.zip "https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_${TARGETARCH}.zip"; \
+    wget -q -O /tmp/pb.zip "https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_${arch}.zip"; \
     echo "${sha}  /tmp/pb.zip" | sha256sum -c -; \
     unzip -q /tmp/pb.zip pocketbase -d /pb; \
     rm /tmp/pb.zip; \
