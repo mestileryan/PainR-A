@@ -50,6 +50,7 @@ export const IconeCrayon = (p: Props) => (
     <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
   </Icone>
 )
+export const IconeLecture = (p: Props) => <Icone {...p}><path d="M7 4.5v15l12-7.5z" /></Icone>
 export const IconeSortie = (p: Props) => (
   <Icone {...p}>
     <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" />

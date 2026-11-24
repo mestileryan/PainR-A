@@ -53,5 +53,9 @@ export interface Fournee extends RecordModel {
   date: string
   notes: string
   photos: string[]
-  expand?: { version?: Version; essai?: Essai }
+  // Fournée en cours de réalisation (mode cuisine) ; false une fois terminée.
+  en_cours: boolean
+  etapes_faites: number[] | null
+  coefficient: number
+  expand?: { version?: Version; essai?: Essai; recette?: Recette }
 }

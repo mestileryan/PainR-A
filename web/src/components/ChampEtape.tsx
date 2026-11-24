@@ -5,14 +5,17 @@ import type { Ingredient } from "../lib/types"
 import TexteEtape from "./TexteEtape"
 
 interface Props {
+  id: string
   numero: number
   texte: string
   ingredients: Ingredient[]
   onChange: (texte: string) => void
+  // Touche pressée quand la liste des ingrédients n'est pas utilisée (ex. Tab pour ajouter une étape).
+  onToucheLibre?: (e: KeyboardEvent<HTMLTextAreaElement>) => void
 }
 
 // Champ d'une étape : taper « @ » propose les ingrédients de la recette.
-export default function ChampEtape({ numero, texte, ingredients, onChange }: Props) {
+export default function ChampEtape({ id, numero, texte, ingredients, onChange, onToucheLibre }: Props) {
   const zone = useRef<HTMLTextAreaElement>(null)
   const idListe = useId()
   const [recherche, setRecherche] = useState<{ debut: number; requete: string } | null>(null)
@@ -52,22 +55,29 @@ export default function ChampEtape({ numero, texte, ingredients, onChange }: Pro
   }
 
   function touche(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if (!recherche) return
-    if (e.key === "Escape") {
+    if (recherche && e.key === "Escape") {
       e.preventDefault()
       setRecherche(null)
-    } else if (propositions.length > 0) {
+      return
+    }
+    if (recherche && propositions.length > 0) {
       if (e.key === "ArrowDown") {
         e.preventDefault()
         setActif((a) => (a + 1) % propositions.length)
-      } else if (e.key === "ArrowUp") {
+        return
+      }
+      if (e.key === "ArrowUp") {
         e.preventDefault()
         setActif((a) => (a - 1 + propositions.length) % propositions.length)
-      } else if (e.key === "Enter" || e.key === "Tab") {
+        return
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
         e.preventDefault()
         choisir(propositions[Math.min(actif, propositions.length - 1)])
+        return
       }
     }
+    onToucheLibre?.(e)
   }
 
   const ouverte = recherche !== null
@@ -77,6 +87,7 @@ export default function ChampEtape({ numero, texte, ingredients, onChange }: Pro
     <div className="relative flex min-w-0 flex-1 flex-col gap-1.5">
       <textarea
         ref={zone}
+        id={id}
         aria-label={`Étape ${numero}`}
         aria-autocomplete="list"
         aria-expanded={ouverte}

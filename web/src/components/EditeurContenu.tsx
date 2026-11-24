@@ -77,20 +77,28 @@ export function verifierLignes(lignes: Lignes): string | null {
 
 export default function EditeurContenu({ lignes, onChange }: { lignes: Lignes; onChange: (l: Lignes) => void }) {
   const idBase = useId()
-  const [aFocaliser, setAFocaliser] = useState<number | null>(null)
+  const [aFocaliser, setAFocaliser] = useState<string | null>(null)
   const ingredientsCites = useMemo(() => contenuDepuis(lignes).ingredients, [lignes])
+  const idIngredient = (cle: number) => `${idBase}-ingredient-${cle}`
+  const idEtape = (cle: number) => `${idBase}-etape-${cle}`
 
   // Une ligne ajoutée (bouton ou Tab) reçoit le curseur dès qu'elle est affichée.
   useEffect(() => {
     if (aFocaliser === null) return
-    document.getElementById(`${idBase}-ingredient-${aFocaliser}`)?.focus()
+    document.getElementById(aFocaliser)?.focus()
     setAFocaliser(null)
-  }, [aFocaliser, idBase])
+  }, [aFocaliser])
 
   function ajouterIngredient() {
     const ligne = nouvelIngredient()
-    setAFocaliser(ligne.cle)
+    setAFocaliser(idIngredient(ligne.cle))
     onChange({ ...lignes, ingredients: [...lignes.ingredients, ligne] })
+  }
+
+  function ajouterEtape() {
+    const ligne = nouvelleEtape()
+    setAFocaliser(idEtape(ligne.cle))
+    onChange({ ...lignes, etapes: [...lignes.etapes, ligne] })
   }
 
   function majIngredient(cle: number, champ: "nom" | "quantite" | "unite", valeur: string) {
@@ -120,7 +128,7 @@ export default function EditeurContenu({ lignes, onChange }: { lignes: Lignes; o
         </div>
         {lignes.ingredients.map((ligne, i) => (
           <div key={ligne.cle} className="flex items-center gap-2">
-            <input id={`${idBase}-ingredient-${ligne.cle}`} aria-label={`Ingrédient ${i + 1}`} value={ligne.nom}
+            <input id={idIngredient(ligne.cle)} aria-label={`Ingrédient ${i + 1}`} value={ligne.nom}
               onChange={(e) => majIngredient(ligne.cle, "nom", e.target.value)}
               className={`${classeChamp} min-w-0 flex-1`} />
             <input aria-label={`Quantité de l'ingrédient ${i + 1}`} inputMode="decimal" value={ligne.quantite}
@@ -129,8 +137,10 @@ export default function EditeurContenu({ lignes, onChange }: { lignes: Lignes; o
             <input aria-label={`Unité de l'ingrédient ${i + 1}`} value={ligne.unite} placeholder="g"
               onChange={(e) => majIngredient(ligne.cle, "unite", e.target.value)}
               onKeyDown={(e) => {
-                // Tab depuis la dernière ligne : on en ajoute une nouvelle.
-                if (e.key === "Tab" && !e.shiftKey && i === lignes.ingredients.length - 1) {
+                // Tab depuis la dernière ligne remplie : on en ajoute une nouvelle.
+                // Si elle est vide, Tab sort de la liste.
+                const remplie = Boolean(ligne.nom.trim() || ligne.quantite.trim() || ligne.unite.trim())
+                if (e.key === "Tab" && !e.shiftKey && i === lignes.ingredients.length - 1 && remplie) {
                   e.preventDefault()
                   ajouterIngredient()
                 }
@@ -157,16 +167,22 @@ export default function EditeurContenu({ lignes, onChange }: { lignes: Lignes; o
         {lignes.etapes.map((ligne, i) => (
           <div key={ligne.cle} className="flex items-start gap-2">
             <span className="w-7 shrink-0 pt-3 font-mono text-sm text-seigle">{String(i + 1).padStart(2, "0")}</span>
-            <ChampEtape numero={i + 1} texte={ligne.texte} ingredients={ingredientsCites}
-              onChange={(texte) => majEtape(ligne.cle, texte)} />
-            <button type="button" aria-label={`Retirer l'étape ${i + 1}`} className={classeBoutonRetrait}
+            <ChampEtape id={idEtape(ligne.cle)} numero={i + 1} texte={ligne.texte} ingredients={ingredientsCites}
+              onChange={(texte) => majEtape(ligne.cle, texte)}
+              onToucheLibre={(e) => {
+                // Tab depuis la dernière étape remplie : on en ajoute une nouvelle.
+                if (e.key === "Tab" && !e.shiftKey && i === lignes.etapes.length - 1 && ligne.texte.trim()) {
+                  e.preventDefault()
+                  ajouterEtape()
+                }
+              }} />
+            <button type="button" tabIndex={-1} aria-label={`Retirer l'étape ${i + 1}`} className={classeBoutonRetrait}
               onClick={() => onChange({ ...lignes, etapes: lignes.etapes.filter((l) => l.cle !== ligne.cle) })}>
               <IconeCroix />
             </button>
           </div>
         ))}
-        <button type="button" className={classeBoutonAjout}
-          onClick={() => onChange({ ...lignes, etapes: [...lignes.etapes, nouvelleEtape()] })}>
+        <button type="button" className={classeBoutonAjout} onClick={ajouterEtape}>
           <IconePlus /> Ajouter une étape
         </button>
       </section>

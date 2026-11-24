@@ -135,6 +135,22 @@ ok(recette.expand.version_courante.ingredients[1].quantite === 760 && recette.ex
 ok((await api("GET", `/api/collections/versions/records?filter=${encodeURIComponent(`recette="${recetteId}"`)}`, { token: T })).data.totalItems === 2, "correction : pas de nouvelle version")
 ok((await api("POST", `/api/painrd/recettes/inconnue12345/corriger`, { token: T, body: { nom: "X" } })).status === 404, "correction d'une recette inconnue : 404")
 
+// Fournée en cours (mode cuisine) : progression enregistrée, puis terminée avec photo
+const fc = await api("POST", "/api/collections/fournees/records", { token: T, body: {
+  recette: recetteId, version: v2, date: "2026-11-24 12:00:00.000Z", en_cours: true, etapes_faites: [], coefficient: 2,
+} })
+ok(fc.status === 200 && fc.data.en_cours === true && fc.data.coefficient === 2, "fournée en cours créée avec son coefficient")
+const avance = await api("PATCH", `/api/collections/fournees/records/${fc.data.id}`, { token: T, body: { etapes_faites: [0, 2] } })
+ok(avance.status === 200 && avance.data.etapes_faites.join(",") === "0,2", "progression enregistrée")
+const enCuisine = (await api("GET", `/api/collections/fournees/records?filter=${encodeURIComponent("en_cours = true")}`, { token: T })).data
+ok(enCuisine.totalItems === 1, "filtre « en cours » : 1 fournée")
+const fin = new FormData()
+fin.append("en_cours", "false"); fin.append("notes", "Très bien")
+fin.append("photos+", new Blob([png], { type: "image/png" }), "fin.png")
+const finie = await api("PATCH", `/api/collections/fournees/records/${fc.data.id}`, { token: T, form: fin })
+ok(finie.status === 200 && finie.data.en_cours === false && finie.data.photos.length === 1, "fournée terminée, photo ajoutée")
+ok((await api("PATCH", `/api/collections/fournees/records/${fc.data.id}`, { token: T, body: { version: "" } })).status >= 400, "rattachement d'une fournée non modifiable")
+
 ok((await api("DELETE", `/api/collections/recettes/records/${recetteId}`, { token: T })).status === 204, "supprimer la recette")
 for (const c of ["versions", "essais", "fournees"]) {
   const n = (await api("GET", `/api/collections/${c}/records`, { token: T })).data.totalItems

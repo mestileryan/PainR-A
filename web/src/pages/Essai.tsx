@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react"
-import { Link, useParams } from "react-router"
+import { Link, useNavigate, useParams } from "react-router"
+import CarteEnCours from "../components/CarteEnCours"
 import {
   Chargement, Erreur, LienRetour, Page, TitreSection,
   classeBoutonPointille, classeBoutonPrincipal, classeBoutonSecondaire,
 } from "../components/Commun"
-import { IconeCroix, IconePhoto } from "../components/Icones"
+import { IconeCroix, IconeLecture, IconePhoto } from "../components/Icones"
+import { demarrerFournee } from "../lib/fournees"
 import ListeDifferences from "../components/ListeDifferences"
 import ListeFournees from "../components/ListeFournees"
 import NouvelleFournee from "../components/NouvelleFournee"
@@ -32,6 +34,8 @@ export default function Essai() {
   const [panneau, setPanneau] = useState<Panneau>("")
   const [raison, setRaison] = useState("")
   const [envoi, setEnvoi] = useState(false)
+  const [demarrage, setDemarrage] = useState(false)
+  const naviguer = useNavigate()
 
   const charger = useCallback(async () => {
     try {
@@ -67,9 +71,22 @@ export default function Essai() {
     )
   }
 
-  const { essai, recette, base, courante, fournees, jeton } = donnees
+  const { essai, recette, base, courante, jeton } = donnees
+  const realisations = donnees.fournees.filter((f) => f.en_cours)
+  const fournees = donnees.fournees.filter((f) => !f.en_cours)
   const enCours = essai.statut === "en_cours"
   const depasse = enCours && base.id !== courante.id
+
+  async function commencer() {
+    setDemarrage(true)
+    try {
+      const idFournee = await demarrerFournee(recette.id, { essai: essai.id }, 1)
+      naviguer(`/fournees/${idFournee}`)
+    } catch (err) {
+      setErreur(messageErreur(err))
+      setDemarrage(false)
+    }
+  }
   const nombrePhotos = fournees.reduce((n, f) => n + f.photos.length, 0)
 
   async function decider(action: "valider" | "refuser") {
@@ -104,6 +121,15 @@ export default function Essai() {
           </p>
         )}
       </div>
+
+      {realisations.map((f) => <CarteEnCours key={f.id} fournee={f} titre="Fournée de test en cours" />)}
+
+      {enCours && !depasse && (
+        <button type="button" onClick={commencer} disabled={demarrage} className={classeBoutonPrincipal}>
+          <IconeLecture />
+          {demarrage ? "Démarrage…" : "Faire cet essai"}
+        </button>
+      )}
 
       {essai.statut === "valide" && (
         <div className="flex flex-col gap-2 rounded-2xl border border-[#b9d0ec] bg-version-fond p-4">

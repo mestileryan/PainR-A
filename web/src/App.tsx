@@ -5,6 +5,7 @@ import Connexion from "./pages/Connexion"
 import CorrectionRecette from "./pages/CorrectionRecette"
 import EditionEssai from "./pages/EditionEssai"
 import Essai from "./pages/Essai"
+import Execution from "./pages/Execution"
 import Historique from "./pages/Historique"
 import Livret from "./pages/Livret"
 import NouvelleRecette from "./pages/NouvelleRecette"
@@ -38,6 +39,7 @@ export default function App() {
         <Route path="/recettes/:id/corriger" element={<CorrectionRecette />} />
         <Route path="/recettes/:id/essais/nouveau" element={<EditionEssai mode="nouveau" />} />
         <Route path="/essais/:id" element={<Essai />} />
+        <Route path="/fournees/:id" element={<Execution />} />
         <Route path="/essais/:id/modifier" element={<EditionEssai mode="modifier" />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

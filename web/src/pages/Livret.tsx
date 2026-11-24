@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router"
-import { Chargement, Erreur, Page, classeChamp } from "../components/Commun"
+import { Chargement, Erreur, Page, TitreSection, classeChamp } from "../components/Commun"
 import { IconeEssai, IconePlus, IconeSortie, IconeSuite } from "../components/Icones"
 import { dateCourte, pluriel, sansAccents } from "../lib/format"
 import { messageErreur, pb } from "../lib/pb"
-import type { Essai, Recette } from "../lib/types"
+import type { Essai, Fournee, Recette } from "../lib/types"
+import CarteEnCours from "../components/CarteEnCours"
 
 export default function Livret() {
   const [recettes, setRecettes] = useState<Recette[] | null>(null)
   const [essaisEnCours, setEssaisEnCours] = useState<Essai[]>([])
+  const [enCuisine, setEnCuisine] = useState<Fournee[]>([])
   const [recherche, setRecherche] = useState("")
   const [erreur, setErreur] = useState("")
 
@@ -22,12 +24,18 @@ export default function Livret() {
         expand: "recette",
         fields: "id,recette,titre,numero,expand.recette.nom",
       }),
+      pb.collection("fournees").getFullList<Fournee>({
+        filter: "en_cours = true",
+        sort: "-created",
+        expand: "recette,version,essai",
+      }),
     ])
-      .then(([listeRecettes, essais]) => {
+      .then(([listeRecettes, essais, fournees]) => {
         if (annule) return
         listeRecettes.sort((a, b) => a.nom.localeCompare(b.nom, "fr"))
         setRecettes(listeRecettes)
         setEssaisEnCours(essais)
+        setEnCuisine(fournees)
       })
       .catch((err) => !annule && setErreur(messageErreur(err)))
     return () => {
@@ -66,6 +74,15 @@ export default function Livret() {
       <Erreur message={erreur} />
 
       {recettes === null && !erreur && <Chargement />}
+
+      {enCuisine.length > 0 && (
+        <section className="flex flex-col gap-2.5">
+          <TitreSection aside={pluriel(enCuisine.length, "fournée", "fournées")}>En cours</TitreSection>
+          {enCuisine.map((f) => (
+            <CarteEnCours key={f.id} fournee={f} titre={f.expand?.recette?.nom ?? "Recette"} />
+          ))}
+        </section>
+      )}
 
       {recettes !== null && recettes.length > 0 && (
         <div className="flex flex-col gap-1.5">

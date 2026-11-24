@@ -78,7 +78,7 @@ export default function Historique() {
       pb.collection("recettes").getOne<Recette>(id),
       pb.collection("versions").getFullList<Version>({ filter: filtreRecette, sort: "numero" }),
       pb.collection("essais").getFullList<Essai>({ filter: `${filtreRecette} && statut != "en_cours"` }),
-      pb.collection("fournees").getFullList<Fournee>({ filter: filtreRecette, sort: "-date" }),
+      pb.collection("fournees").getFullList<Fournee>({ filter: `${filtreRecette} && en_cours = false`, sort: "-date" }),
       pb.files.getToken(),
     ])
       .then(([recette, versions, essais, fournees, jeton]) => {

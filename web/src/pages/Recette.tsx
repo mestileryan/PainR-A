@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react"
-import { Link, useParams, useSearchParams } from "react-router"
+import { Link, useNavigate, useParams, useSearchParams } from "react-router"
+import CarteEnCours from "../components/CarteEnCours"
+import { demarrerFournee } from "../lib/fournees"
 import ChoixCoefficient from "../components/ChoixCoefficient"
 import {
-  Chargement, Erreur, LienRetour, Page, TitreSection, classeBoutonPointille, classeBoutonSecondaire,
+  Chargement, Erreur, LienRetour, Page, TitreSection, classeBoutonPointille, classeBoutonPrincipal, classeBoutonSecondaire,
 } from "../components/Commun"
-import { IconeCrayon, IconeEssai, IconeHorloge, IconePhoto, IconeSuite } from "../components/Icones"
+import { IconeCrayon, IconeEssai, IconeHorloge, IconeLecture, IconePhoto, IconeSuite } from "../components/Icones"
 import TexteEtape from "../components/TexteEtape"
 import ListeFournees from "../components/ListeFournees"
 import NouvelleFournee from "../components/NouvelleFournee"
@@ -25,6 +27,8 @@ export default function Recette() {
   const [donnees, setDonnees] = useState<Donnees | null>(null)
   const [erreur, setErreur] = useState("")
   const [ajoutFournee, setAjoutFournee] = useState(false)
+  const [demarrage, setDemarrage] = useState(false)
+  const naviguer = useNavigate()
   const [parametres, setParametres] = useSearchParams()
   const coefficient = lireCoefficient(parametres.get("coef")) ?? 1
   const changerCoefficient = (valeur: number) =>
@@ -65,8 +69,22 @@ export default function Recette() {
     )
   }
 
-  const { recette, essais, fournees, jeton } = donnees
+  const { recette, essais, jeton } = donnees
+  const enCours = donnees.fournees.filter((f) => f.en_cours)
+  const fournees = donnees.fournees.filter((f) => !f.en_cours)
   const version = recette.expand?.version_courante
+
+  async function commencer() {
+    if (!version) return
+    setDemarrage(true)
+    try {
+      const idFournee = await demarrerFournee(recette.id, { version: version.id }, coefficient)
+      naviguer(`/fournees/${idFournee}`)
+    } catch (err) {
+      setErreur(messageErreur(err))
+      setDemarrage(false)
+    }
+  }
   const ingredients = version?.ingredients ?? []
   const etapes = version?.etapes ?? []
 
@@ -95,6 +113,18 @@ export default function Recette() {
           </div>
         )}
       </div>
+
+      {enCours.map((f) => (
+        <CarteEnCours key={f.id} fournee={f} titre={f.essai ? `Essai n° ${f.expand?.essai?.numero ?? ""} en cours de réalisation` : "Fournée en cours"} />
+      ))}
+
+      {version && (
+        <button type="button" onClick={commencer} disabled={demarrage} className={classeBoutonPrincipal}>
+          <IconeLecture />
+          {demarrage ? "Démarrage…" : `Commencer la recette${coefficient !== 1 ? ` (×${nombre(coefficient)})` : ""}`}
+        </button>
+      )}
+      <Erreur message={erreur} />
 
       {essais.map((essai) => {
         const changements = version ? resumerDifferences(version, essai) : []
