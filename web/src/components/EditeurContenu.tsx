@@ -1,8 +1,8 @@
 import { useEffect, useId, useMemo, useState } from "react"
-import { lireQuantite, sansAccents } from "../lib/format"
+import { lireQuantite, quantiteSaisie, sansAccents } from "../lib/format"
 import { memeNom, problemesReferences, renommerReferences } from "../lib/references"
 import type { Etape, Ingredient } from "../lib/types"
-import ChampEtape from "./ChampEtape"
+import EditeurEtape from "./EditeurEtape"
 import { TitreSection, classeChamp } from "./Commun"
 import { IconeCroix, IconePlus } from "./Icones"
 
@@ -30,7 +30,7 @@ let compteur = 0
 export const nouvelIngredient = (i?: Ingredient): LigneIngredient => ({
   cle: ++compteur,
   nom: i?.nom ?? "",
-  quantite: i?.quantite === undefined || i?.quantite === null ? "" : String(i.quantite).replace(".", ","),
+  quantite: i ? quantiteSaisie(i) : "",
   unite: i?.unite ?? "",
 })
 export const nouvelleEtape = (e?: Etape): LigneEtape => ({ cle: ++compteur, texte: e?.texte ?? "" })
@@ -124,7 +124,7 @@ export default function EditeurContenu({ lignes, onChange }: { lignes: Lignes; o
         <div className="flex gap-2 pr-[52px] text-[13px] font-medium text-sourdine" aria-hidden="true">
           <span className="flex-1">Ingrédient</span>
           <span className="w-20">Quantité</span>
-          <span className="w-16">Unité</span>
+          <span className="w-24">Unité</span>
         </div>
         {lignes.ingredients.map((ligne, i) => (
           <div key={ligne.cle} className="flex items-center gap-2">
@@ -145,7 +145,7 @@ export default function EditeurContenu({ lignes, onChange }: { lignes: Lignes; o
                   ajouterIngredient()
                 }
               }}
-              className={`${classeChamp} w-16! shrink-0`} />
+              className={`${classeChamp} w-24! shrink-0`} />
             {/* Hors tabulation : Tab enchaîne Ingrédient → Quantité → Unité → ligne suivante. */}
             <button type="button" tabIndex={-1} aria-label={`Retirer l'ingrédient ${i + 1}`} className={classeBoutonRetrait}
               onClick={() => onChange({ ...lignes, ingredients: lignes.ingredients.filter((l) => l.cle !== ligne.cle) })}>
@@ -161,13 +161,13 @@ export default function EditeurContenu({ lignes, onChange }: { lignes: Lignes; o
       <section className="flex flex-col gap-2.5">
         <TitreSection>Étapes</TitreSection>
         <p className="m-0 text-sm leading-snug text-sourdine">
-          Tape <kbd className="font-mono text-encre">@</kbd> pour citer un ingrédient, et{" "}
-          <span className="font-mono text-encre">@[Eau|1/2]</span> pour n'en utiliser qu'une partie (aussi : 30%, 0,25).
+          Tape <kbd className="font-mono text-encre">@</kbd> ou utilise les boutons pour insérer un ingrédient ou une
+          durée. Touche un bloc pour en prendre une fraction ou le modifier ; Retour arrière l'efface en entier.
         </p>
         {lignes.etapes.map((ligne, i) => (
           <div key={ligne.cle} className="flex items-start gap-2">
             <span className="w-7 shrink-0 pt-3 font-mono text-sm text-seigle">{String(i + 1).padStart(2, "0")}</span>
-            <ChampEtape id={idEtape(ligne.cle)} numero={i + 1} texte={ligne.texte} ingredients={ingredientsCites}
+            <EditeurEtape id={idEtape(ligne.cle)} numero={i + 1} texte={ligne.texte} ingredients={ingredientsCites}
               onChange={(texte) => majEtape(ligne.cle, texte)}
               onToucheLibre={(e) => {
                 // Tab depuis la dernière étape remplie : on en ajoute une nouvelle.

@@ -34,19 +34,45 @@ export const trouverIngredient = (nom: string, ingredients: Ingredient[]) =>
 export type Morceau =
   | { type: "texte"; texte: string }
   | { type: "reference"; nom: string; portion: number | null; ingredient?: Ingredient; brut: string }
+  | { type: "duree"; secondes: number; brut: string }
+
+// Blocs d'une étape : ingrédients cités @[Nom|portion] et durées #[secondes].
+const motifBlocs = () => /@\[([^\]|\n]+)(?:\|([^\]\n]*))?\]|#\[(\d+)\]/g
 
 export function decouperEtape(texte: string, ingredients: Ingredient[]): Morceau[] {
   const morceaux: Morceau[] = []
   let position = 0
-  for (const m of texte.matchAll(motifReference())) {
+  for (const m of texte.matchAll(motifBlocs())) {
     const debut = m.index ?? 0
     if (debut > position) morceaux.push({ type: "texte", texte: texte.slice(position, debut) })
-    const nom = m[1].trim()
-    morceaux.push({ type: "reference", nom, portion: lirePortion(m[2]), ingredient: trouverIngredient(nom, ingredients), brut: m[0] })
+    if (m[3] !== undefined) {
+      morceaux.push({ type: "duree", secondes: Number(m[3]), brut: m[0] })
+    } else {
+      const nom = m[1].trim()
+      morceaux.push({ type: "reference", nom, portion: lirePortion(m[2]), ingredient: trouverIngredient(nom, ingredients), brut: m[0] })
+    }
     position = debut + m[0].length
   }
   if (position < texte.length) morceaux.push({ type: "texte", texte: texte.slice(position) })
   return morceaux
+}
+
+export const contientBlocs = (texte: string) => motifBlocs().test(texte)
+
+// Portion lisible pour un bloc : 0.5 → « ½ », 0.3 → « 30 % ».
+const portionsUsuelles: [number, string][] = [[1 / 2, "½"], [1 / 3, "⅓"], [2 / 3, "⅔"], [1 / 4, "¼"], [3 / 4, "¾"]]
+export function libellePortion(portion: number): string {
+  const usuelle = portionsUsuelles.find(([v]) => Math.abs(v - portion) < 1e-3)
+  if (usuelle) return usuelle[1]
+  return `${nombre(portion * 100, 1)} %`
+}
+
+// Jeton d'un ingrédient cité, avec sa portion (1 = tout).
+export function jetonReference(nom: string, portion = 1): string {
+  if (Math.abs(portion - 1) < 1e-9) return `@[${nom}]`
+  const usuelle: Record<string, string> = { "½": "1/2", "⅓": "1/3", "⅔": "2/3", "¼": "1/4", "¾": "3/4" }
+  const libelle = libellePortion(portion)
+  return `@[${nom}|${usuelle[libelle] ?? `${nombre(portion * 100, 1)}%`}]`
 }
 
 // Quantité citée : la portion de l'ingrédient, multipliée par le coefficient de la recette.

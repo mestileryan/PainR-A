@@ -144,6 +144,9 @@ const avance = await api("PATCH", `/api/collections/fournees/records/${fc.data.i
 ok(avance.status === 200 && avance.data.etapes_faites.join(",") === "0,2", "progression enregistrée")
 const enCuisine = (await api("GET", `/api/collections/fournees/records?filter=${encodeURIComponent("en_cours = true")}`, { token: T })).data
 ok(enCuisine.totalItems === 1, "filtre « en cours » : 1 fournée")
+const minuteurs = [{ id: "m1", etape: 1, libelle: "Étape 2", duree: 2700, fin: "2026-11-24T13:00:00.000Z", restant: null }]
+const avecMinuteur = await api("PATCH", `/api/collections/fournees/records/${fc.data.id}`, { token: T, body: { minuteurs } })
+ok(avecMinuteur.status === 200 && avecMinuteur.data.minuteurs[0].duree === 2700, "minuteur enregistré sur la fournée")
 const fin = new FormData()
 fin.append("en_cours", "false"); fin.append("notes", "Très bien")
 fin.append("photos+", new Blob([png], { type: "image/png" }), "fin.png")

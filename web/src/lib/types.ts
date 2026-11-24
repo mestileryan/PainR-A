@@ -57,5 +57,16 @@ export interface Fournee extends RecordModel {
   en_cours: boolean
   etapes_faites: number[] | null
   coefficient: number
+  minuteurs: Minuteur[] | null
   expand?: { version?: Version; essai?: Essai; recette?: Recette }
+}
+
+// Minuteur d'une étape : en marche (fin renseignée) ou en pause (restant renseigné).
+export interface Minuteur {
+  id: string
+  etape: number
+  libelle: string
+  duree: number
+  fin: string | null
+  restant: number | null
 }

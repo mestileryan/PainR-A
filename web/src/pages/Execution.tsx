@@ -3,13 +3,29 @@ import { Link, useNavigate, useParams } from "react-router"
 import {
   Chargement, Erreur, LienRetour, Page, TitreSection, classeBoutonPrincipal, classeBoutonSecondaire,
 } from "../components/Commun"
-import { IconePhoto } from "../components/Icones"
+import { IconeChrono, IconeCroix, IconeLecture, IconePause, IconePhoto } from "../components/Icones"
 import TexteEtape from "../components/TexteEtape"
+import { dureesDansTexte, formatChrono, formatDuree } from "../lib/durees"
 import { dateCourte, dateLongue, nombre, pluriel, quantiteTexte } from "../lib/format"
 import { coefficientFournee, contenuFournee, progression } from "../lib/fournees"
+import {
+  ajouterMinute, demanderNotifications, deverrouillerSon, etatMinuteur, mettreEnPause, nouveauMinuteur, reprendre,
+  signalerMinuteurs,
+} from "../lib/minuteurs"
 import { messageErreur, pb } from "../lib/pb"
 import { reduirePhoto } from "../lib/photos"
-import type { Fournee } from "../lib/types"
+import { decouperEtape } from "../lib/references"
+import type { Fournee, Minuteur } from "../lib/types"
+
+// Durées d'une étape : blocs « durée », puis durées écrites en toutes lettres (« Cuire 45 min »).
+function dureesEtape(texte: string): { secondes: number }[] {
+  const durees: { secondes: number }[] = []
+  for (const m of decouperEtape(texte, [])) {
+    if (m.type === "duree") durees.push({ secondes: m.secondes })
+    else if (m.type === "texte") durees.push(...dureesDansTexte(m.texte))
+  }
+  return durees.filter((d, i) => durees.findIndex((x) => x.secondes === d.secondes) === i)
+}
 
 // Garde l'écran allumé pendant la cuisson, quand le navigateur le permet.
 function useEcranAllume(actif: boolean) {
@@ -76,6 +92,15 @@ export default function Execution() {
 
   useEcranAllume(fournee?.en_cours === true)
 
+  // Les décomptes avancent chaque seconde tant qu'un minuteur existe.
+  const [maintenant, setMaintenant] = useState(Date.now())
+  const aDesMinuteurs = (fournee?.minuteurs ?? []).length > 0
+  useEffect(() => {
+    if (!aDesMinuteurs) return
+    const tic = window.setInterval(() => setMaintenant(Date.now()), 1000)
+    return () => window.clearInterval(tic)
+  }, [aDesMinuteurs])
+
   // À l'ouverture, on amène l'étape en cours à l'écran.
   useEffect(() => {
     if (!fournee || defilement.current) return
@@ -101,6 +126,29 @@ export default function Execution() {
   const { courante, faites: nbFaites, total } = progression(fournee)
   const retour = essai ? `/essais/${essai.id}` : `/recettes/${fournee.recette}`
   const libelleSource = essai ? `Essai n° ${essai.numero}` : `Version ${fournee.expand?.version?.numero ?? ""}`
+
+  // --- Minuteurs ----------------------------------------------------------
+  async function enregistrerMinuteurs(liste: Minuteur[]) {
+    if (!fournee) return
+    const avant = fournee
+    setFournee({ ...fournee, minuteurs: liste })
+    try {
+      await pb.collection("fournees").update(fournee.id, { minuteurs: liste })
+      signalerMinuteurs()
+    } catch (err) {
+      setFournee(avant)
+      setErreur(messageErreur(err))
+    }
+  }
+  const minuteurs = fournee.minuteurs ?? []
+  const lancer = (etape: number, secondes: number) => {
+    deverrouillerSon()
+    void demanderNotifications()
+    void enregistrerMinuteurs([...minuteurs, nouveauMinuteur(etape, `Étape ${etape + 1}`, secondes)])
+  }
+  const changer = (id: string, f: (m: Minuteur) => Minuteur) =>
+    enregistrerMinuteurs(minuteurs.map((m) => (m.id === id ? f(m) : m)))
+  const arreter = (id: string) => enregistrerMinuteurs(minuteurs.filter((m) => m.id !== id))
 
   async function basculer(index: number) {
     if (!fournee) return
@@ -203,12 +251,14 @@ export default function Execution() {
           {etapes.map((etape, i) => {
             const faite = faites.has(i)
             const enCours = i === courante && !faite
+            const durees = dureesEtape(etape.texte)
             return (
-              <li key={i} id={`etape-${i}`}>
+              <li key={i} id={`etape-${i}`}
+                className={`flex flex-col rounded-2xl ${enCours
+                  ? "border-2 border-encre bg-carte"
+                  : faite ? "border border-trait bg-fond text-sourdine" : "border border-trait bg-carte"}`}>
                 <button type="button" aria-pressed={faite} onClick={() => basculer(i)}
-                  className={`flex w-full items-start gap-3.5 rounded-2xl px-4 py-4 text-left ${enCours
-                    ? "border-2 border-encre bg-carte"
-                    : faite ? "border border-trait bg-fond text-sourdine" : "border border-trait bg-carte"}`}>
+                  className="flex w-full items-start gap-3.5 rounded-2xl border-0 bg-transparent px-4 py-4 text-left text-inherit">
                   <Coche faite={faite} />
                   <span className="flex min-w-0 flex-col gap-1">
                     <span className="font-mono text-sm text-seigle">
@@ -219,6 +269,29 @@ export default function Execution() {
                     </span>
                   </span>
                 </button>
+                {durees.length > 0 && (
+                  <div className="-mt-1 flex flex-wrap gap-2 px-4 pb-4 pl-[62px]">
+                    {durees.map((d, j) => {
+                      const actuel = (fournee.minuteurs ?? []).find((m) => m.etape === i && m.duree === d.secondes)
+                      if (actuel) {
+                        const { etat, reste } = etatMinuteur(actuel, maintenant)
+                        return (
+                          <span key={j} className="flex h-11 items-center gap-1.5 rounded-xl bg-version-fond px-3 font-mono text-[15px] font-medium text-version">
+                            <IconeChrono taille={18} />
+                            {etat === "fini" ? "Terminé" : formatChrono(reste)}{etat === "pause" && " (pause)"}
+                          </span>
+                        )
+                      }
+                      return (
+                        <button key={j} type="button" onClick={() => lancer(i, d.secondes)}
+                          className="flex h-11 items-center gap-1.5 rounded-xl border border-version bg-carte px-3 text-[15px] font-semibold text-version">
+                          <IconeLecture taille={16} />
+                          {formatDuree(d.secondes)}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
               </li>
             )
           })}
@@ -262,6 +335,46 @@ export default function Execution() {
             <button type="submit" disabled={envoi} className={classeBoutonPrincipal}>{envoi ? "Envoi…" : "Enregistrer"}</button>
           </div>
         </form>
+      )}
+
+      {minuteurs.length > 0 && (
+        <>
+          <div aria-hidden="true" style={{ height: `${minuteurs.length * 64 + 24}px` }} />
+          <section aria-label="Minuteurs"
+            className="fixed inset-x-0 bottom-0 z-40 border-t border-trait bg-carte/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgba(0,0,0,0.08)] backdrop-blur">
+            <ul className="mx-auto m-0 flex max-w-xl list-none flex-col gap-2 p-0">
+              {minuteurs.map((m) => {
+                const { etat, reste } = etatMinuteur(m, maintenant)
+                return (
+                  <li key={m.id} className={`flex items-center gap-2 rounded-xl px-3 py-1.5 ${etat === "fini" ? "bg-essai text-white" : "bg-version-fond"}`}>
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className={`text-sm ${etat === "fini" ? "" : "text-encre-douce"}`}>{m.libelle} · {formatDuree(m.duree)}</span>
+                      <span className={`font-mono text-xl font-medium ${etat === "fini" ? "" : "text-version"}`} aria-live={etat === "fini" ? "assertive" : "off"}>
+                        {etat === "fini" ? "Terminé !" : formatChrono(reste)}{etat === "pause" && <span className="ml-2 font-sans text-sm">en pause</span>}
+                      </span>
+                    </span>
+                    {etat === "marche" && (
+                      <button type="button" aria-label={`Mettre en pause : ${m.libelle}`} onClick={() => changer(m.id, mettreEnPause)}
+                        className="flex h-11 w-11 items-center justify-center rounded-xl border-0 bg-carte text-version"><IconePause /></button>
+                    )}
+                    {etat === "pause" && (
+                      <button type="button" aria-label={`Reprendre : ${m.libelle}`} onClick={() => changer(m.id, reprendre)}
+                        className="flex h-11 w-11 items-center justify-center rounded-xl border-0 bg-carte text-version"><IconeLecture /></button>
+                    )}
+                    <button type="button" onClick={() => changer(m.id, ajouterMinute)}
+                      className={`h-11 rounded-xl border-0 px-2.5 text-sm font-semibold ${etat === "fini" ? "bg-white/20 text-white" : "bg-carte text-version"}`}>
+                      +1 min
+                    </button>
+                    <button type="button" aria-label={`Arrêter : ${m.libelle}`} onClick={() => arreter(m.id)}
+                      className={`flex h-11 w-11 items-center justify-center rounded-xl border-0 ${etat === "fini" ? "bg-white text-essai" : "bg-carte text-sourdine"}`}>
+                      <IconeCroix />
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+        </>
       )}
 
       {panneau === "abandonner" && (

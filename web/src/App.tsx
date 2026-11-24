@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { BrowserRouter, Navigate, Route, Routes } from "react-router"
+import AlarmesMinuteurs from "./components/AlarmesMinuteurs"
 import { pb } from "./lib/pb"
 import Connexion from "./pages/Connexion"
 import CorrectionRecette from "./pages/CorrectionRecette"
@@ -31,6 +32,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <AlarmesMinuteurs />
       <Routes>
         <Route path="/" element={<Livret />} />
         <Route path="/recettes/nouvelle" element={<NouvelleRecette />} />
