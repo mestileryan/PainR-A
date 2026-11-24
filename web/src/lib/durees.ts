@@ -37,17 +37,43 @@ export function formatChrono(secondes: number): string {
   return h > 0 ? `${h}:${deux(min)}:${deux(sec)}` : `${min}:${deux(sec)}`
 }
 
-// Durées écrites en toutes lettres dans un texte (« Cuire 45 min », « Pointage 3 h 30 »).
-const motifTexte = /(\d+(?:[.,]\d+)?)\s*(h|heures?|min|minutes?|mn|s|sec|secondes?)\b(?:\s*(\d{1,2})(?!\s*(?:h|min|mn|s)\b)(?=\D|$))?/gi
+// Durées écrites dans le texte d'une étape, reconnues comme des chronos :
+//   « 1h30 », « 12h05 », « 1 h 30 »  → heures + minutes (00 à 59)
+//   « 1:30 », « 125:00 »             → heures:minutes, exactement 2 chiffres après « : »
+//   « 4h », « 4 heures », « 45 min », « 1,5 h », « 30 s »
+const motifTexte = new RegExp([
+  // 1h30, 1 h 30 (minutes sur 1 ou 2 chiffres, non suivies d'un autre chiffre ni d'une unité)
+  String.raw`(?<![\d.,])(\d+)\s*h\s*(\d{1,2})(?!\d)(?!\s*(?:min|mn|s\b|sec))`,
+  // 1:30, 125:00 — « : » suivi d'exactement deux chiffres
+  String.raw`(?<![\d.,:])(\d+):(\d{2})(?![\d:])`,
+  // 4h, 4 heures, 45 min, 1,5 h, 30 s — l'unité n'est pas le début d'un mot (« 2 sachets »)
+  String.raw`(?<![\d.,])(\d+(?:[.,]\d+)?)\s*(heures?|h|minutes?|min|mn|secondes?|sec|s)(?![a-zà-ÿ])`,
+].join("|"), "gi")
 
-export function dureesDansTexte(texte: string): { secondes: number; libelle: string }[] {
-  const trouvees: { secondes: number; libelle: string }[] = []
+export interface DureeTrouvee {
+  secondes: number
+  libelle: string
+  debut: number
+  fin: number
+}
+
+export function dureesDansTexte(texte: string): DureeTrouvee[] {
+  const trouvees: DureeTrouvee[] = []
   for (const m of texte.matchAll(motifTexte)) {
-    const valeur = Number(m[1].replace(",", "."))
-    const unite = m[2].toLowerCase()
-    let secondes = unite.startsWith("h") ? valeur * 3600 : unite.startsWith("s") ? valeur : valeur * 60
-    if (unite.startsWith("h") && m[3]) secondes += Number(m[3]) * 60
-    if (secondes > 0) trouvees.push({ secondes: Math.round(secondes), libelle: m[0].trim() })
+    let secondes = 0
+    if (m[1] !== undefined) {
+      if (Number(m[2]) > 59) continue
+      secondes = Number(m[1]) * 3600 + Number(m[2]) * 60
+    } else if (m[3] !== undefined) {
+      if (Number(m[4]) > 59) continue
+      secondes = Number(m[3]) * 3600 + Number(m[4]) * 60
+    } else {
+      const valeur = Number(m[5].replace(",", "."))
+      const unite = m[6].toLowerCase()
+      secondes = unite.startsWith("h") ? valeur * 3600 : unite.startsWith("s") ? valeur : valeur * 60
+    }
+    const debut = m.index ?? 0
+    if (secondes > 0) trouvees.push({ secondes: Math.round(secondes), libelle: m[0], debut, fin: debut + m[0].length })
   }
   return trouvees
 }
