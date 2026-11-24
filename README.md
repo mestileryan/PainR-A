@@ -16,27 +16,19 @@ L'application s'installe sur le téléphone comme une app (PWA). Les données et
 
 ### Ce qu'il faut
 
-- Un serveur Linux avec Docker et Docker Compose.
-- Un nom de domaine géré par Cloudflare (offre gratuite), pour accéder au livret depuis l'extérieur sans ouvrir de port sur la box.
+Un serveur Linux avec Docker et Docker Compose.
 
-### 1. Créer le tunnel Cloudflare
-
-1. Dans le tableau de bord Cloudflare, ouvre **Cloudflare One (Zero Trust) › Networks › Tunnels** et crée un tunnel de type **Cloudflared**.
-2. Copie le **jeton** du tunnel. C'est la longue chaîne qui suit `--token` dans la commande proposée.
-3. Ajoute une **route publique** (Public hostname) :
-   - sous-domaine et domaine : par exemple `recettes.mondomaine.fr` ;
-   - service : `HTTP`, URL : `painrd:8090`.
-
-### 2. Lancer le livret sur le serveur
+### 1. Lancer le livret sur le serveur
 
 ```bash
 git clone https://github.com/mestileryan/PainR-A.git
 cd PainR-A
-cp .env.example .env        # puis colle le jeton du tunnel dans TUNNEL_TOKEN
 docker compose up -d --build
 ```
 
-### 3. Créer les comptes
+Le livret est alors accessible depuis le réseau local, sur `http://ip-du-serveur:8090`.
+
+### 2. Créer les comptes
 
 Crée d'abord le compte d'administration de PocketBase :
 
@@ -44,24 +36,36 @@ Crée d'abord le compte d'administration de PocketBase :
 docker compose exec painrd /pb/pocketbase superuser upsert ton@email.fr 'un-mot-de-passe-solide' --dir /pb/pb_data
 ```
 
-Ensuite, ouvre `https://recettes.mondomaine.fr/_/`, connecte-toi avec ce compte, et crée ton compte utilisateur dans la collection **users**. C'est avec lui que tu te connecteras au livret. L'inscription publique est fermée.
+Ensuite, ouvre `http://ip-du-serveur:8090/_/`, connecte-toi avec ce compte, et crée ton compte utilisateur dans la collection **users**. C'est avec lui que tu te connecteras au livret. L'inscription publique est fermée.
 
-### 4. Activer les sauvegardes
+### 3. Activer les sauvegardes
 
 Dans l'administration (`/_/`), va dans **Settings › Backups** :
 
 - active les sauvegardes automatiques (par exemple tous les jours) ;
 - renseigne un stockage S3 externe (Cloudflare R2, Backblaze B2…), pour qu'une panne du serveur n'emporte pas les photos.
 
-### 5. Installer l'app sur le téléphone
+### 4. Sur le téléphone
 
-Ouvre `https://recettes.mondomaine.fr` sur le téléphone, puis choisis **Ajouter à l'écran d'accueil**.
+Ouvre `http://ip-du-serveur:8090`, puis **Ajouter à l'écran d'accueil**.
+
+En `http://`, le navigateur crée un simple raccourci. Pour une vraie app installable, il faut un accès en HTTPS (voir ci-dessous).
+
+### Accès depuis l'extérieur (optionnel)
+
+Ne pas ouvrir le port 8090 sur la box : le mot de passe passerait en clair.
+
+- **Tailscale** (le plus simple) : installe Tailscale sur le serveur et sur le téléphone, avec le même compte. Ensuite, sur le serveur, lance `sudo tailscale serve --bg 8090`. Le livret est accessible en HTTPS sur l'adresse `https://<serveur>.<ton-réseau>.ts.net` qu'affiche la commande, uniquement depuis tes appareils.
+- **Tunnel Cloudflare** (avec un nom de domaine géré par Cloudflare) :
+  1. Dans le tableau de bord Cloudflare, ouvre **Networking › Tunnels**, puis **Create a tunnel**. Copie le jeton qui commence par `eyJ…`, sans exécuter la commande proposée.
+  2. Mets-le dans le fichier `.env` (`TUNNEL_TOKEN=…`, voir `.env.example`), puis lance `docker compose --profile cloudflare up -d`.
+  3. Dans le tunnel, ouvre **Routes › Add route › Published application** : choisis le sous-domaine et le domaine, avec la **Service URL** `http://painrd:8090`.
 
 ### Mettre à jour
 
 ```bash
 git pull
-docker compose up -d --build
+docker compose up -d --build    # ajouter --profile cloudflare si le tunnel est utilisé
 ```
 
 Les migrations de base de données s'appliquent toutes seules au démarrage.

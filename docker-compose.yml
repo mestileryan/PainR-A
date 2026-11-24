@@ -6,15 +6,19 @@ services:
     volumes:
       - pb_data:/pb/pb_data
     ports:
-      # Accessible uniquement depuis le serveur lui-même ; l'extérieur passe par le tunnel.
-      - "127.0.0.1:8090:8090"
+      # Par défaut, accessible depuis le réseau local : http://ip-du-serveur:8090
+      # Avec ADRESSE_ECOUTE=127.0.0.1 dans .env, réservé au serveur (accès par le tunnel seulement).
+      - "${ADRESSE_ECOUTE:-0.0.0.0}:8090:8090"
 
+  # Optionnel : accès depuis l'extérieur par un tunnel Cloudflare.
+  # Démarré seulement avec : docker compose --profile cloudflare up -d
   tunnel:
     image: cloudflare/cloudflared:2026.11.1
+    profiles: ["cloudflare"]
     restart: unless-stopped
     command: tunnel --no-autoupdate run
     environment:
-      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?Renseigne TUNNEL_TOKEN dans le fichier .env}
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
     depends_on:
       painrd:
         condition: service_healthy
