@@ -5,7 +5,7 @@ import {
 import { formatDuree, jetonDuree, lireDuree } from "../lib/durees"
 import { sansAccents } from "../lib/format"
 import {
-  contientBlocs, decouperEtape, jetonReference, libellePortion, lirePortion, quantiteReference,
+  contientBlocs, decouperEtape, jetonReference, libellePortion, lirePortion, memeNom, quantiteReference,
 } from "../lib/references"
 import type { Ingredient } from "../lib/types"
 import { IconeChrono, IconePlus } from "./Icones"
@@ -117,12 +117,14 @@ interface Props {
   numero: number
   texte: string
   ingredients: Ingredient[]
+  // Texte des autres étapes, pour proposer « le reste » d'un ingrédient déjà en partie utilisé.
+  autresTextes: string[]
   onChange: (texte: string) => void
   // Touche pressée hors de la liste des ingrédients (ex. Tab pour ajouter une étape).
   onToucheLibre?: (e: KeyboardEvent<HTMLDivElement>) => void
 }
 
-export default function EditeurEtape({ id, numero, texte, ingredients, onChange, onToucheLibre }: Props) {
+export default function EditeurEtape({ id, numero, texte, ingredients, autresTextes, onChange, onToucheLibre }: Props) {
   const conteneur = useRef<HTMLDivElement>(null)
   const zone = useRef<HTMLDivElement>(null)
   const dernierePlage = useRef<Range | null>(null)
@@ -216,13 +218,14 @@ export default function EditeurEtape({ id, numero, texte, ingredients, onChange,
         if (o?.type !== "recherche" || o.requete !== r.requete) setActif(0)
         return { type: "recherche", requete: r.requete }
       }
-      return o?.type === "recherche" ? null : o
+      // Taper referme aussi le choix de portion ouvert juste après une insertion.
+      return o?.type === "recherche" || o?.type === "bloc" ? null : o
     })
   }
 
-  function insererBloc(jeton: string, plage?: Range | null) {
+  function insererBloc(jeton: string, plage?: Range | null): HTMLElement | null {
     const el = zone.current
-    if (!el) return
+    if (!el) return null
     el.focus()
     let r = plage ?? dernierePlage.current
     if (!r || !el.contains(r.startContainer)) {
@@ -232,8 +235,9 @@ export default function EditeurEtape({ id, numero, texte, ingredients, onChange,
     }
     r.deleteContents()
     const espace = document.createTextNode(" ")
+    const bloc = creerBloc(jeton, ingredients)
     r.insertNode(espace)
-    r.insertNode(creerBloc(jeton, ingredients))
+    r.insertNode(bloc)
     const apres = document.createRange()
     apres.setStart(espace, 1)
     apres.collapse(true)
@@ -241,6 +245,22 @@ export default function EditeurEtape({ id, numero, texte, ingredients, onChange,
     sel?.removeAllRanges()
     sel?.addRange(apres)
     publier()
+    return bloc
+  }
+
+  // Part d'un ingrédient déjà citée dans la recette (autres étapes et autres blocs de celle-ci).
+  function portionUtilisee(nom: string, sauf: HTMLElement): number {
+    let total = 0
+    const ajouter = (jeton: string) => {
+      for (const m of decouperEtape(jeton, ingredients)) {
+        if (m.type === "reference" && m.portion !== null && memeNom(m.nom, nom)) total += m.portion
+      }
+    }
+    autresTextes.forEach(ajouter)
+    zone.current?.querySelectorAll<HTMLElement>("[data-jeton]").forEach((el) => {
+      if (el !== sauf) ajouter(el.dataset.jeton ?? "")
+    })
+    return total
   }
 
   function choisirIngredient(ingredient: Ingredient) {
@@ -252,7 +272,13 @@ export default function EditeurEtape({ id, numero, texte, ingredients, onChange,
       plage.setEnd(r.noeud, r.fin)
     }
     setOuvert(null)
-    insererBloc(jetonReference(ingredient.nom.trim()), plage)
+    const bloc = insererBloc(jetonReference(ingredient.nom.trim()), plage)
+    // Le choix de la portion s'affiche tout de suite ; continuer à taper le referme (tout l'ingrédient).
+    if (bloc) {
+      setSaisiePortion("")
+      setErreurPanneau("")
+      setOuvert({ type: "bloc", el: bloc })
+    }
   }
 
   function modifierBloc(el: HTMLElement, jeton: string) {
@@ -362,7 +388,7 @@ export default function EditeurEtape({ id, numero, texte, ingredients, onChange,
     }
   }
 
-  const classeChoix = "flex h-11 items-center justify-center rounded-xl border border-trait-fort bg-carte px-3 text-[15px] font-medium"
+  const classeChoix = "flex h-11 items-center justify-center rounded-xl border border-trait-fort bg-carte px-2 text-[15px] font-medium whitespace-nowrap"
 
   return (
     <div ref={conteneur} className="relative flex min-w-0 flex-1 flex-col gap-1">
@@ -429,6 +455,17 @@ export default function EditeurEtape({ id, numero, texte, ingredients, onChange,
         <div role="dialog" aria-label={`Bloc ${morceauBloc.nom}`}
           className="absolute top-full right-0 left-0 z-10 -mt-12 flex flex-col gap-2.5 rounded-xl border border-trait-fort bg-carte p-3 shadow-lg">
           <span className="text-[15px] font-semibold">{morceauBloc.nom} : quelle quantité ?</span>
+          {morceauBloc.ingredient && (() => {
+            const reste = 1 - portionUtilisee(morceauBloc.nom, bloc)
+            if (reste <= 0.001 || reste >= 0.999) return null
+            return (
+              <button type="button" onClick={() => modifierBloc(bloc, jetonReference(morceauBloc.nom, reste))}
+                className="flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-seigle bg-[#f3e6da] px-3 text-[15px] font-semibold text-seigle">
+                Le reste · {libellePortion(reste)}
+                <span className="font-mono text-sm">{quantiteReference(morceauBloc.ingredient, reste)}</span>
+              </button>
+            )
+          })()}
           {morceauBloc.ingredient && (
             <div className="grid grid-cols-3 gap-1.5">
               <button type="button" className={classeChoix}
@@ -438,7 +475,7 @@ export default function EditeurEtape({ id, numero, texte, ingredients, onChange,
               {portionsProposees.map(([libelle, valeur]) => (
                 <button key={libelle} type="button" className={classeChoix}
                   onClick={() => modifierBloc(bloc, jetonReference(morceauBloc.nom, valeur))}>
-                  {libelle} <span className="ml-1 font-mono text-xs text-sourdine">{quantiteReference(morceauBloc.ingredient!, valeur)}</span>
+                  {libelle} <span className="ml-1 font-mono text-xs whitespace-nowrap text-sourdine">{quantiteReference(morceauBloc.ingredient!, valeur)}</span>
                 </button>
               ))}
             </div>

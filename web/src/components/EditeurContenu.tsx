@@ -168,6 +168,7 @@ export default function EditeurContenu({ lignes, onChange }: { lignes: Lignes; o
           <div key={ligne.cle} className="flex items-start gap-2">
             <span className="w-7 shrink-0 pt-3 font-mono text-sm text-seigle">{String(i + 1).padStart(2, "0")}</span>
             <EditeurEtape id={idEtape(ligne.cle)} numero={i + 1} texte={ligne.texte} ingredients={ingredientsCites}
+              autresTextes={lignes.etapes.filter((l) => l.cle !== ligne.cle).map((l) => l.texte)}
               onChange={(texte) => majEtape(ligne.cle, texte)}
               onToucheLibre={(e) => {
                 // Tab depuis la dernière étape remplie : on en ajoute une nouvelle.

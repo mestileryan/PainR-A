@@ -74,6 +74,7 @@ export default function Execution() {
   const [notes, setNotes] = useState("")
   const [photos, setPhotos] = useState<File[]>([])
   const [envoi, setEnvoi] = useState(false)
+  const [voirPrecedentes, setVoirPrecedentes] = useState(false)
   const defilement = useRef(false)
 
   const charger = useCallback(async () => {
@@ -247,8 +248,18 @@ export default function Execution() {
 
       <section className="flex flex-col gap-2.5">
         <TitreSection aside="touche une étape pour la cocher">Étapes</TitreSection>
-        <ol className="m-0 flex list-none flex-col gap-2 p-0">
+        {courante > 0 && (
+          <button type="button" aria-expanded={voirPrecedentes} onClick={() => setVoirPrecedentes((v) => !v)}
+            className="flex h-11 items-center justify-center rounded-xl border border-dashed border-pointille bg-transparent text-[15px] font-semibold text-encre-douce">
+            {voirPrecedentes
+              ? "Masquer les étapes précédentes"
+              : `Afficher les étapes précédentes (${courante})`}
+          </button>
+        )}
+        <ol start={voirPrecedentes ? 1 : courante + 1} className="m-0 flex list-none flex-col gap-2 p-0">
           {etapes.map((etape, i) => {
+            // Les étapes déjà faites avant l'étape en cours sont repliées.
+            if (!voirPrecedentes && i < courante) return null
             const faite = faites.has(i)
             const enCours = i === courante && !faite
             const durees = dureesEtape(etape.texte)

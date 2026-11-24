@@ -139,7 +139,9 @@ export default function Recette() {
             </span>
             <span className="text-base font-semibold">{essai.titre}</span>
             {changements.length > 0 && (
-              <span className="font-mono text-[13px] leading-relaxed text-sourdine">{changements.join(" · ")}</span>
+              <ul className="m-0 flex list-none flex-col gap-0.5 p-0 font-mono text-[13px] leading-snug text-sourdine">
+                {changements.map((c, i) => <li key={i}>{c}</li>)}
+              </ul>
             )}
           </Link>
         )

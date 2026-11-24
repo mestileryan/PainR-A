@@ -16,7 +16,7 @@ interface Entree {
   badge: string
   date: string
   titre: string
-  detail: string
+  detail: string[]
   raison?: string
   lien?: string
   fournees: Fournee[]
@@ -43,7 +43,7 @@ function construireEntrees(recette: Recette, versions: Version[], essais: Essai[
       badge: `Version ${v.numero}${v.id === recette.version_courante ? " · en vigueur" : ""}`,
       date: v.created,
       titre: origine?.titre ?? (v.numero === 1 ? "Recette de départ" : `Version ${v.numero}`),
-      detail: precedente ? resumerDifferences(precedente, v).join(" · ") : "Création de la recette",
+      detail: precedente ? resumerDifferences(precedente, v) : ["Création de la recette"],
       lien: origine ? `/essais/${origine.id}` : undefined,
       fournees: fournees.filter((f) => f.version === v.id || (origine && f.essai === origine.id)),
     })
@@ -56,7 +56,7 @@ function construireEntrees(recette: Recette, versions: Version[], essais: Essai[
       badge: "Essai refusé",
       date: e.date_decision || e.created,
       titre: e.titre,
-      detail: base ? resumerDifferences(base, e).join(" · ") : "",
+      detail: base ? resumerDifferences(base, e) : [],
       raison: e.raison_refus,
       lien: `/essais/${e.id}`,
       fournees: fournees.filter((f) => f.essai === e.id),
@@ -143,7 +143,11 @@ export default function Historique() {
                 <span className="text-base leading-snug font-semibold">{e.titre}</span>
                 {e.lien && <IconeSuite taille={18} className="shrink-0 text-sourdine" />}
               </span>
-              {e.detail && <span className="font-mono text-[13px] leading-relaxed text-sourdine">{e.detail}</span>}
+              {e.detail.length > 0 && (
+                <span className="flex flex-col gap-0.5 font-mono text-[13px] leading-snug text-sourdine">
+                  {e.detail.map((d, i) => <span key={i}>{d}</span>)}
+                </span>
+              )}
               {e.raison && (
                 <span className="rounded-xl bg-[#ecebe7] px-3 py-2.5 text-sm leading-snug text-encre-douce">
                   <strong className="font-semibold">Refusé car :</strong> {e.raison}
