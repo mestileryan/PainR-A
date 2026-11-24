@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
-import { Link, useParams } from "react-router"
+import { Link, useParams, useSearchParams } from "react-router"
+import ChoixCoefficient from "../components/ChoixCoefficient"
 import {
   Chargement, Erreur, LienRetour, Page, TitreSection, classeBoutonPointille, classeBoutonSecondaire,
 } from "../components/Commun"
@@ -7,7 +8,7 @@ import { IconeCrayon, IconeHorloge, IconePhoto, IconeSuite } from "../components
 import ListeFournees from "../components/ListeFournees"
 import NouvelleFournee from "../components/NouvelleFournee"
 import { resumerDifferences } from "../lib/differences"
-import { dateCourte, pluriel, quantiteTexte } from "../lib/format"
+import { dateCourte, lireCoefficient, nombre, pluriel, quantiteTexte } from "../lib/format"
 import { messageErreur, pb } from "../lib/pb"
 import type { Essai, Fournee, Recette as RecetteModele } from "../lib/types"
 
@@ -23,6 +24,14 @@ export default function Recette() {
   const [donnees, setDonnees] = useState<Donnees | null>(null)
   const [erreur, setErreur] = useState("")
   const [ajoutFournee, setAjoutFournee] = useState(false)
+  const [parametres, setParametres] = useSearchParams()
+  const coefficient = lireCoefficient(parametres.get("coef")) ?? 1
+  const changerCoefficient = (valeur: number) =>
+    setParametres((p) => {
+      if (valeur === 1) p.delete("coef")
+      else p.set("coef", String(valeur))
+      return p
+    }, { replace: true })
 
   const charger = useCallback(async () => {
     try {
@@ -126,7 +135,8 @@ export default function Recette() {
       </section>
 
       <section className="flex flex-col gap-2.5">
-        <TitreSection>Ingrédients</TitreSection>
+        <TitreSection aside={coefficient !== 1 ? `quantités ×${nombre(coefficient)}` : undefined}>Ingrédients</TitreSection>
+        {ingredients.length > 0 && <ChoixCoefficient valeur={coefficient} onChange={changerCoefficient} />}
         {ingredients.length === 0 ? (
           <p className="m-0 text-[15px] text-sourdine">Aucun ingrédient.</p>
         ) : (
@@ -134,10 +144,21 @@ export default function Recette() {
             {ingredients.map((ingredient, i) => (
               <li key={i} className="flex justify-between gap-3 border-b border-[#ecebe7] px-4 py-3.5 text-base last:border-b-0">
                 <span>{ingredient.nom}</span>
-                <span className="font-mono text-[15px]">{quantiteTexte(ingredient)}</span>
+                <span className={`font-mono text-[15px] ${coefficient !== 1 && typeof ingredient.quantite === "number" ? "text-seigle" : ""}`}>
+                  {quantiteTexte(ingredient, coefficient)}
+                </span>
               </li>
             ))}
           </ul>
+        )}
+        {coefficient !== 1 && (
+          <p className="m-0 flex flex-wrap items-center justify-between gap-x-3 text-sm leading-snug text-sourdine">
+            <span>Quantités recalculées. Les durées et températures des étapes ne changent pas.</span>
+            <button type="button" onClick={() => changerCoefficient(1)}
+              className="h-11 border-0 bg-transparent p-0 text-sm font-semibold text-seigle underline">
+              Revenir aux quantités d'origine
+            </button>
+          </p>
         )}
       </section>
 

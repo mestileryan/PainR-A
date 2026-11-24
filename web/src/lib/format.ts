@@ -21,10 +21,33 @@ export function aujourdhui(): string {
 // Un jour choisi dans un <input type="date">, à midi UTC pour ne pas changer de jour selon le fuseau.
 export const jourVersPocketBase = (jour: string) => `${jour} 12:00:00.000Z`
 
-export function quantiteTexte(ingredient: Ingredient): string {
-  return [ingredient.quantite, ingredient.unite]
-    .filter((v) => v !== undefined && v !== null && String(v).trim() !== "")
-    .join(" ")
+// Nombre à la française (« 1,5 »), sans séparateur de milliers (« 1000 g » comme dans les recettes).
+export function nombre(valeur: number, decimalesMax = 3): string {
+  return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: decimalesMax, useGrouping: false }).format(valeur)
+}
+
+// Arrondi lisible pour une quantité recalculée : 2 décimales sous 10, 1 sous 100, entier au-delà.
+const decimalesAjustees = (valeur: number) => (valeur < 10 ? 2 : valeur < 100 ? 1 : 0)
+
+// Quantité affichée, éventuellement multipliée par un coefficient.
+// Une quantité en texte (« 1 pincée ») n'est jamais recalculée.
+export function quantiteTexte(ingredient: Ingredient, coefficient = 1): string {
+  const { quantite, unite } = ingredient
+  let texte = ""
+  if (typeof quantite === "number") {
+    const valeur = quantite * coefficient
+    texte = coefficient === 1 ? nombre(valeur) : nombre(valeur, decimalesAjustees(valeur))
+  } else if (typeof quantite === "string") {
+    texte = quantite.trim()
+  }
+  return [texte, unite?.trim() ?? ""].filter(Boolean).join(" ")
+}
+
+// Coefficient lu dans l'adresse (?coef=1.5) ou saisi : « 1,5 » et « 1.5 » sont acceptés.
+export function lireCoefficient(saisie: string | null): number | null {
+  if (!saisie) return null
+  const valeur = Number(saisie.trim().replace(",", "."))
+  return Number.isFinite(valeur) && valeur > 0 && valeur <= 100 ? valeur : null
 }
 
 // « 1,5 » ou « 1.5 » → 1.5 ; tout ce qui n'est pas un nombre reste du texte (« 1 pincée »).
