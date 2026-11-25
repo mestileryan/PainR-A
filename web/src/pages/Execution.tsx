@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router"
 import {
   Chargement, Erreur, LienRetour, Page, TitreSection, classeBoutonPrincipal, classeBoutonSecondaire,
 } from "../components/Commun"
+import ChoixCoefficient from "../components/ChoixCoefficient"
 import { IconeChrono, IconeCroix, IconeLecture, IconePause, IconePhoto } from "../components/Icones"
 import TexteEtape from "../components/TexteEtape"
 import { dureesDansTexte, formatChrono, formatDuree } from "../lib/durees"
@@ -151,6 +152,20 @@ export default function Execution() {
     enregistrerMinuteurs(minuteurs.map((m) => (m.id === id ? f(m) : m)))
   const arreter = (id: string) => enregistrerMinuteurs(minuteurs.filter((m) => m.id !== id))
 
+  // Le coefficient se change en cours de route ; il est gardé sur la fournée.
+  async function changerCoefficient(valeur: number) {
+    if (!fournee || valeur === coefficientFournee(fournee)) return
+    const avant = fournee
+    setFournee({ ...fournee, coefficient: valeur })
+    try {
+      await pb.collection("fournees").update(fournee.id, { coefficient: valeur })
+      setErreur("")
+    } catch (err) {
+      setFournee(avant)
+      setErreur(messageErreur(err))
+    }
+  }
+
   async function basculer(index: number) {
     if (!fournee) return
     const suivantes = new Set(faites)
@@ -218,7 +233,13 @@ export default function Execution() {
           En cours · {libelleSource} · commencée le {dateCourte(fournee.date)}
         </span>
         <h1 className="m-0 font-titre text-[30px] leading-[1.1] font-bold">{recette?.nom}</h1>
-        {coefficient !== 1 && <span className="font-mono text-sm text-seigle">Quantités ×{nombre(coefficient)}</span>}
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <span className="text-sm font-medium text-sourdine">
+          Quantités{coefficient !== 1 && <span className="font-mono text-seigle"> ×{nombre(coefficient)}</span>}
+        </span>
+        <ChoixCoefficient valeur={coefficient} onChange={changerCoefficient} />
       </div>
 
       <div className="flex flex-col gap-2" aria-live="polite">
